@@ -1,0 +1,70 @@
+{
+module GuardedCommandLexer
+
+open System
+open GuardedCommandParser
+open Microsoft.FSharp.Text.Lexing
+open System.Text
+
+let keywords =
+    [
+    "par",      PAR;
+    "rap",      RAP;
+    "if",       IF;
+    "fi",       FI;
+    "do",       DO;
+    "od",       OD;
+    "loop",     LOOP;
+    "pool",     POOL;
+    "var",      DECL;
+    "skip",     SKIP;
+    "true",     TRUE;
+    "false",    FALSE;
+    ] |> Map.ofList
+
+let op =
+    [
+    "+",        PL;
+    "-",        MI;
+    "*",        MLT;
+    "/",        DIV;
+    "%",        MOD;
+    "==",       EQ;
+    "<",        LT;
+    ">",        GT;
+    "<=",       LEQ;
+    ">=",       GEQ;
+    "!=",       NEQ;
+    "&&",       LAND;
+    "||",       LOR;
+    "!",        SEND;
+    "?",        RECV;
+    "->",       IMP;
+    ] |> Map.ofList
+}
+
+let char        = ['a'-'z' 'A'-'Z']
+let digit       = ['0'-'9']
+let whitespace  = [' ' '\t']
+let newline     = "\n\r" | '\n' | '\r'
+let int         = '-'?digit+
+let id          = char(char|digit|['_'])*
+let operator  = "+" | "-" | "*" | "/" | "%" | "==" | "<" | ">" | "<=" | ">=" | "!=" | "&&" | "||" | "!" | "?" | "->"
+
+rule tokenize = parse
+| whitespace    { tokenize lexbuf }
+| newline       { lexbuf.EndPos <- lexbuf.EndPos.NextLine; tokenize lexbuf; }
+| int           { INT(Int32.Parse(LexBuffer<_>.LexemeString lexbuf)) }
+| ":="          { ASSIGN }
+| "[]"          { CON }
+| ";"           { SEQ }
+| "["           { LB }
+| "]"           { RB }
+| "("           { LP }
+| ")"           { RP }
+| "~"           { NOT }
+| operator      { op.[LexBuffer<_>.LexemeString lexbuf] }
+| id            { match keywords.TryFind(LexBuffer<_>.LexemeString lexbuf) with
+                  | Some(token) -> token
+                  | None -> VAR(LexBuffer<_>.LexemeString lexbuf) }
+| eof           { EOF }
