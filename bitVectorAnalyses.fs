@@ -15,7 +15,7 @@ let top_RD G =
     let vars = (varsInGraph G)
     let c = Set.empty
     let nCombo = Set.fold (fun rst q -> rst + (combine q nodes) ) Set.empty nodes
-    let vCombo = Set.fold (fun rst var -> rst + (Set.fold (fun rst (q1,q2) -> Set.add (var,q1,q2,Set.empty) rst) Set.empty nCombo) ) Set.empty vars
+    let vCombo = Set.fold (fun rst var -> rst + (Set.fold (fun rst (q1,q2) -> Set.add (var,q1,q2,Global) rst) Set.empty nCombo) ) Set.empty vars
     vCombo
     ;;
 
@@ -24,12 +24,12 @@ let btm_RD = Set.empty ;;
 let order_RD s1 s2 = Set.(+) (s1,s2) ;;
 
 let exVal_RD G non =
-    Set.fold (fun rst var -> Set.add (var,non,non,Set.empty) rst) Set.empty (varsInGraph G)
+    Set.fold (fun rst var -> Set.add (var,non,non,Initial) rst) Set.empty (varsInGraph G)
 
 let con_RD G Aa (qs,a,qt) L =
     let distachedNodes = ((allNodes G)-(connectedComponent qs G))
-    let cc = Set.fold (fun rst q -> rst + (Set.fold (fun rst (v,q1,q2,c) -> rst+c ) Set.empty (Map.find q Aa)) ) Set.empty distachedNodes
-    Set.fold (fun rst (v,q1,q2) -> Set.add (v,q1,q2,Set.empty) rst ) Set.empty cc
+    let cc = Set.fold (fun rst q -> rst + (Set.filter (fun (v,q1,q2,c) -> c=Global ) (Map.find q Aa)) ) Set.empty distachedNodes
+    Set.fold (fun rst (v,q1,q2,c) -> Set.add (v,q1,q2,Concurrent) rst ) Set.empty cc
     ;;
 
 let kill_RD non Aa (qs,a,qt) L =
@@ -42,9 +42,9 @@ let kill_RD non Aa (qs,a,qt) L =
 
 let gen_RD non Aa (qs,a,qt) L =
     match a with
-    | Node( Assign, Node(X(x),_)::xs )      -> Set.ofList [(x,qs,qt,Set.ofList [(x,qs,qt)] )]
-    | Node( Decl,   Node(X(x),_)::xs )      -> Set.ofList [(x,qs,qt,Set.ofList [(x,qs,qt)] )]
-    | Node( Recv,   ch::Node(X(x),_)::xs)   -> Set.ofList [(x,qs,qt,Set.ofList [(x,qs,qt)] )]
+    | Node( Assign, Node(X(x),_)::xs )      -> Set.ofList [(x,qs,qt,Global )]
+    | Node( Decl,   Node(X(x),_)::xs )      -> Set.ofList [(x,qs,qt,Global )]
+    | Node( Recv,   ch::Node(X(x),_)::xs)   -> Set.ofList [(x,qs,qt,Global )]
     | _ -> Set.empty
     ;;
 

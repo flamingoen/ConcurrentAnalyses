@@ -3,6 +3,7 @@ module GC
 // ##### DEFINITIONS #####
 type action = N of int | X of string | A of string | C of string | Assign | P | Cp | Decl | Seq | Send | Recv | Skip | If | Loop | Do | Gc | Guard | True | False | Pl | Mi | Mlt | Div | Mod | Gt | Lt | Eq | Geq | Leq | Neq | Not | Land | Lor;;
 type tree = Node of action*tree list ;;
+type origin = Global | Initial | Local | Concurrent
 let op =
     [
     Pl,     "+";
