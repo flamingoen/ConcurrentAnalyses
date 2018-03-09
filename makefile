@@ -1,3 +1,5 @@
+path = results/result.out
+
 all: run
 
 lexer:
@@ -10,3 +12,6 @@ build: lexer parser
 
 run:
 	fsharpi main.fsx
+
+output:
+	fsharpi main.fsx > $(path)

@@ -28,6 +28,7 @@ let op =
 let printList list = List.iter (fun lst -> (printfn("%A") lst) ) list ;;
 let printMap map = Map.iter (fun key lst -> (printfn("%A\t->\t %A") key lst) ) map ;;
 let printSet set = Set.iter (fun elem -> (printfn("%A") elem) ) set ;;
+let foldSetList set = List.fold (fun rst s -> s+rst) Set.empty set
 
 let rec subsets s =
     if Set.isEmpty s then Set.empty else

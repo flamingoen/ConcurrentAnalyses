@@ -24,19 +24,25 @@ open graphViz
 #load "analysis.fs"
 open analysis
 
-let syntaxTree = parse writeNoReadConditional
+let syntaxTree = parse bakeryAlgorithm
+
 let (graph,exVal) = ( pgGen syntaxTree )
-let (graphProduct,exValProduct) = productGraph graph exVal
 
-makeProductGraph graphProduct exVal
+//let rec QC i map = function
+//    | []          -> map
+//    | nodes::rst  -> QC (i+1) (Set.fold (fun rst node -> Map.add node i rst) map nodes) rst
+//
+//let C = (components graph (allNodes graph))
+//printList C
+//printMap (QC 0 Map.empty (components graph (allNodes graph)))
+
 makeGraph graph exVal
-
-printfn("\n######## original graph ########")
 #time
 reachingDefinition graph exVal -1
 #time
 
-//printfn("\n######## Product graph ########")
+//let (graphProduct,exValProduct) = productGraph graph exVal
+//makeProductGraph graphProduct exVal
 //#time
 //reachingDefinition graphProduct exValProduct (Set.ofList [-1])
 //#time

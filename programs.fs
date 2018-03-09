@@ -82,6 +82,27 @@ rap
 
 "
 
+let setByAnotherProgram = "
+par
+  y:=0;
+  x:=0;
+  if
+    true -> x:=1; skip
+  []
+    true -> x:=-1; skip
+  fi
+[]
+  if
+    x>0 -> y:=1
+  []
+    true -> skip
+  fi;
+  y:=-1
+rap
+
+
+"
+
 let moduloProgram = "
 do m>=n -> m:=m-n od;
 res := m

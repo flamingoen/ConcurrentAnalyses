@@ -5,6 +5,7 @@ let BVF kill gen con Aa (qs,a,qt) L =
     let sigma = (Map.find qs Aa)
     let t = (qs,a,qt)
     lob ((Set.difference sigma (kill Aa t L)) + (gen Aa t L)) (con Aa t L) L
+    //(Set.difference sigma (kill Aa t L)) + (gen Aa t L)
 
 // #### REACHING DEFINITIONS ####
 

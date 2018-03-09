@@ -108,19 +108,31 @@ let rec graphFrom q graph =
         | false -> (Set.fold (fun rst q' -> rst + (graphFrom q' newGraph) ) Set.empty newNodes)+newEdges
 
 let rec connectedComponent_I qList colored graph =
-    if List.isEmpty qList then colored else
-    let q::qRst = qList
-    let newEdges = (edgesFrom q graph) + (edgesTo q graph)
-    let newGraph = graph-newEdges
-    let newNodes = ((endNodes newEdges) + (startNodes newEdges)) - colored
-    connectedComponent_I (qRst@(Set.toList newNodes)) (Set.add q colored) newGraph
+    match qList with
+    | [] -> colored
+    | q::qRst ->
+        let newEdges = (edgesFrom q graph) + (edgesTo q graph)
+        let newGraph = graph-newEdges
+        let newNodes = ((endNodes newEdges) + (startNodes newEdges)) - colored
+        connectedComponent_I (qRst@(Set.toList newNodes)) (Set.add q colored) newGraph
 
 let connectedComponent q graph =
     let setGraph = Set.ofList graph
     let qList = [q]
     connectedComponent_I qList Set.empty setGraph
 
-let QQ q G = Set.difference (allNodes G) (connectedComponent q G) ;;
+let rec QQ q G = function
+    | [] -> Set.empty
+    | set::xs when (Set.contains q set) -> (QQ q G xs)
+    | set::xs -> set + (QQ q G xs)
+
+let rec components G Q =
+    match Set.toList Q with
+    | [] -> []
+    | q::qrst ->
+        let comp = connectedComponent q G
+        let newQ = Q-comp
+        comp::(components G newQ)
 
 // ##### PRODUCT GRAPH GENERATOR #####
 
