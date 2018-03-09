@@ -76,13 +76,13 @@ let reachingDefinition graph ex non =
     let L = (btm_RD, (top_RD graph), order_RD)
     let E = List.fold (fun rst (qs,qt) -> qs::rst ) [] ex
     let exVal = (exVal_RD graph non)
-    let f = f_RD non graph L
     let cmps = (components graph (allNodes graph))
+    let f = f_RD non cmps graph L
     let res = MFP L graph E exVal cmps f
     printfn "\n"
-    printfn("Transitions taken: %A    Max worklist size: %A    Nodes: %i    Transitions: %i") transitions maxWSize (Set.count (allNodes graph)) (List.length graph)
     Map.iter (fun q state ->
         printf("q%A:\t") q
         (Set.iter (fun (x,q1,q2,s) -> printf("%s: %A -> %A\t" ) x q1 q2) state)
         printfn("")
         ) res
+    printfn("\nTransitions taken: %A    Max worklist size: %A    Nodes: %i    Transitions: %i") transitions maxWSize (Set.count (allNodes graph)) (List.length graph)
