@@ -1,52 +1,5 @@
 module signAnalysis
-
-let plus = function
-    | "-","-" -> Set.ofList ["-"]
-    | "-","0" -> Set.ofList ["-"]
-    | "-","+" -> Set.ofList ["-"; "0"; "+"]
-    | "0","-" -> Set.ofList ["-"]
-    | "0","0" -> Set.ofList ["0"]
-    | "0","+" -> Set.ofList ["+"]
-    | "+","-" -> Set.ofList ["-"; "0"; "+"]
-    | "+","0" -> Set.ofList ["+"]
-    | "+","+" -> Set.ofList ["+"]
-    | _       -> failwith("wrong sign detected")
-
-let multi = function
-    | "-","-" -> Set.ofList ["+"]
-    | "-","0" -> Set.ofList ["0"]
-    | "-","+" -> Set.ofList ["-"]
-    | "0","-" -> Set.ofList ["0"]
-    | "0","0" -> Set.ofList ["0"]
-    | "0","+" -> Set.ofList ["0"]
-    | "+","-" -> Set.ofList ["-"]
-    | "+","0" -> Set.ofList ["0"]
-    | "+","+" -> Set.ofList ["+"]
-    | _       -> failwith("wrong sign detected")
-
-let minus = function
-    | "-","-" -> Set.ofList ["-"; "0"; "+"]
-    | "-","0" -> Set.ofList ["-"]
-    | "-","+" -> Set.ofList ["-"]
-    | "0","-" -> Set.ofList ["+"]
-    | "0","0" -> Set.ofList ["0"]
-    | "0","+" -> Set.ofList ["-"]
-    | "+","-" -> Set.ofList ["+"]
-    | "+","0" -> Set.ofList ["+"]
-    | "+","+" -> Set.ofList ["-"; "0"; "+"]
-    | _       -> failwith("wrong sign detected")
-
-let divide = function
-    | "-","-" -> Set.ofList ["+"]
-    | "-","0" -> Set.empty
-    | "-","+" -> Set.ofList ["-"]
-    | "0","-" -> Set.ofList ["0"]
-    | "0","0" -> Set.empty
-    | "0","+" -> Set.ofList ["0"]
-    | "+","-" -> Set.ofList ["-"]
-    | "+","0" -> Set.empty
-    | "+","+" -> Set.ofList ["+"]
-    | _       -> failwith("wrong sign detected")
+open tablesSign
 
 let btm_s = Set.empty ;;
 
@@ -54,9 +7,10 @@ let top_s = Set.empty ;;
 
 let order_s s1 s2 = Set.(+) (s1,s2)
 
-let exVal_s G = Set.empty
-    //let vars = removeLocalVars (varsInGraph G)
-    //Set.fold (fun rst var -> (Set.ofList [(var,"+",Global)])+rst) Set.empty vars
+let exVal_s G =
+    let vars = removeLocalVars (varsInGraph G)
+    //Set.fold (fun rst var -> (Set.ofList [])+rst) Set.empty vars
+    Set.fold (fun rst var -> (Set.ofList [(var,"0",Global)])+rst) Set.empty vars
 
 let con_S G cmps Aa q L =
     let distachedNodes = QQ q G cmps
@@ -84,6 +38,8 @@ let rec As sigma = function
 let rec Bs sigma = function
     | Node(True,_)          -> Set.ofList [True]
     | Node(False,_)         -> Set.ofList [False]
+    | Node(Gt,a1::a2::_)    -> magic (As sigma a1) (As sigma a2) greater
+    | Node(Lt,a1::a2::_)    -> magic (As sigma a1) (As sigma a2) less
     | Node(a,_)             ->failwith("In Bs: unknown match for action "+(string a))
 
 let update x signs sigma =
