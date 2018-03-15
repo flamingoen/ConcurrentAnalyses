@@ -24,7 +24,7 @@ let btm_RD = Set.empty ;;
 let order_RD s1 s2 = Set.(+) (s1,s2) ;;
 
 let exVal_RD G non =
-    Set.fold (fun rst var -> Set.add (var,non,non,Initial) rst) Set.empty (varsInGraph G)
+    Set.fold (fun rst var -> Set.add (var,non,non,Initial) rst) Set.empty (removeLocalVars (varsInGraph G))
 
 let con_RD G cmps Aa q L =
     let distachedNodes = QQ q G cmps
@@ -42,10 +42,16 @@ let kill_RD non Aa (qs,a,qt) L =
 
 let gen_RD non Aa (qs,a,qt) L =
     match a with
-    | Node( Assign, Node(X(x),_)::xs )      -> Set.ofList [(x,qs,qt,Global )]
-    | Node( Assign, Node(A(arr),_)::xs )    -> Set.ofList [(arr,qs,qt,Global )]
-    | Node( Decl,   Node(X(x),_)::xs )      -> Set.ofList [(x,qs,qt,Global )]
-    | Node( Recv,   ch::Node(X(x),_)::xs)   -> Set.ofList [(x,qs,qt,Global )]
+    | Node( Assign, Node(X(x),_)::xs )      ->
+        if isLocal x then Set.ofList [(x,qs,qt,Local )]
+        else Set.ofList [(x,qs,qt,Global )]
+    | Node( Assign, Node(A(arr),_)::xs )    ->
+        if isLocal arr then Set.ofList [(arr,qs,qt,Local )]
+        else Set.ofList [(arr,qs,qt,Global )]
+    | Node( Decl,   Node(X(x),_)::xs )      -> Set.ofList [(x,qs,qt,Local )]
+    | Node( Recv,   ch::Node(X(x),_)::xs)   ->
+        if isLocal x then Set.ofList [(x,qs,qt,Local)]
+        else Set.ofList [(x,qs,qt,Global )]
     | _ -> Set.empty
     ;;
 

@@ -24,9 +24,8 @@ let pGet p var =
 let rec pUpdate p = function
     | Node(X(x),lst)    -> Node(X(pGet p x),lst)
     | Node(A(arr),lst)  -> Node(A(pGet p arr),lst)
-    | Node(C(ch),lst)   -> Node(C(ch),lst)
-    | Node(a,a1::a2::[]) when (op.ContainsKey a) -> Node(a,[(pUpdate p a1);(pUpdate p a1)])
-    | Node(Decl,[x])    -> Node(Decl,[(pUpdate p x)])
+    //| Node(a,a1::a2::[]) when (op.ContainsKey a) -> Node(a,[(pUpdate p a1);(pUpdate p a1)])
+    //| Node(Decl,[x])    -> Node(Decl,[(pUpdate p x)])
     | Node(action,lst)  -> Node(action,(List.foldBack (fun i rst -> (pUpdate p i)::rst) lst []))
     ;;
 
@@ -41,11 +40,11 @@ let rec Pg qs qt p id tree =
     | Node(Assign,_)    ->
         ([(qs,(pUpdate p tree),qt)],[],p)
     | Node(Send,_)      ->
-        ([(qs,tree,qt)],[],p)
+        ([(qs,(pUpdate p tree),qt)],[],p)
     | Node(Recv,_)      ->
-        ([(qs,tree,qt)],[],p)
+        ([(qs,(pUpdate p tree),qt)],[],p)
     | Node(Skip,_)      ->
-        ([(qs,tree,qt)],[],p)
+        ([(qs,(pUpdate p tree),qt)],[],p)
     | Node(P,t::[])     ->
         Pg qs qt p id t
     | Node(Cp,c1::c2::[]) ->
@@ -98,6 +97,13 @@ let endNodes graph = Set.fold (fun rst (qs,a,qt) -> Set.add qt rst) Set.empty gr
 let startNodes graph = Set.fold (fun rst (qs,a,qt) -> Set.add qs rst) Set.empty graph
 
 let rec allNodes graph = List.fold (fun rst (qs,a,qt) -> Set.add qt (Set.add qs rst) ) Set.empty graph ;;
+
+let isLocal var = String.exists (fun c -> c='}') var
+
+let removeLocalVars vars =
+    Set.fold (fun rst var ->
+        if isLocal var then rst else (Set.add var rst)
+    ) Set.empty vars
 
 let rec graphFrom q graph =
     let newEdges = (edgesFrom q graph)
