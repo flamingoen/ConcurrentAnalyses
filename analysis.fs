@@ -2,6 +2,7 @@ module analysis
 
 open lattice
 open bitVectorAnalyses
+open signAnalysis
 
 let mutable transitions = 0
 let mutable maxWSize = 0
@@ -87,6 +88,23 @@ let reachingDefinition graph ex non =
     Map.iter (fun q state ->
         printf("q%A:\t") q
         (Set.iter (fun (x,q1,q2,s) -> printf("%s: %A -> %A\t" ) x q1 q2) state)
+        printfn("")
+        ) res
+    printfn("\nTransitions taken: %A    Max worklist size: %A    Nodes: %i    Transitions: %i") transitions maxWSize (Set.count (allNodes graph)) (List.length graph)
+
+let detectionOfSignsAnalysis graph ex startVal =
+    printfn"\nDetection of signs:"
+    let L = (btm_s, top_s, order_s)
+    let E = List.fold (fun rst (qs,qt) -> qs::rst ) [] ex
+    let exVal = exVal_s graph
+    let cmps = (components graph (allNodes graph))
+    let f = f_s graph cmps L
+    let res_t = MFP L graph E exVal cmps f
+    let res = List.fold (fun rst q -> Map.add q ( (Map.find q rst)+(con_S graph cmps rst q L) ) rst ) res_t E
+    printfn "\n"
+    Map.iter (fun q state ->
+        printf("q%A:\t") q
+        Set.iter (fun (x,s,o) -> printf("%s->%A\t" ) x s) state
         printfn("")
         ) res
     printfn("\nTransitions taken: %A    Max worklist size: %A    Nodes: %i    Transitions: %i") transitions maxWSize (Set.count (allNodes graph)) (List.length graph)
