@@ -4,7 +4,7 @@ open lattice
 let BVF kill gen con Aa (qs,a,qt) L =
     let sigma = (Map.find qs Aa)
     let t = (qs,a,qt)
-    lob ((Set.difference sigma (kill Aa t L)) + (gen Aa t L)) (con Aa t L) L
+    lob ((Set.difference sigma (kill Aa t L)) + (gen Aa t L)) (con Aa qs L) L
 
 // #### REACHING DEFINITIONS ####
 
@@ -26,8 +26,8 @@ let order_RD s1 s2 = Set.(+) (s1,s2) ;;
 let exVal_RD G non =
     Set.fold (fun rst var -> Set.add (var,non,non,Initial) rst) Set.empty (varsInGraph G)
 
-let con_RD G cmps Aa (qs,a,qt) L =
-    let distachedNodes = QQ qs G cmps
+let con_RD G cmps Aa q L =
+    let distachedNodes = QQ q G cmps
     let cc = Set.fold (fun rst q -> rst + (Set.filter (fun (v,q1,q2,c) -> c=Global ) (Map.find q Aa)) ) Set.empty distachedNodes
     Set.fold (fun rst (v,q1,q2,c) -> Set.add (v,q1,q2,Concurrent) rst ) Set.empty cc
     ;;

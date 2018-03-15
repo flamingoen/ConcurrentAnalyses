@@ -6,10 +6,12 @@ open bitVectorAnalyses
 let mutable transitions = 0
 let mutable maxWSize = 0
 
-let printStep (qs,a,qt) Af W =
-    //printfn("%A->%A:\t  %-10s W size: %A ") qs qt (nodeToString a) (List.length W)
-    if transitions%100=0 then printf("\n")
-    printf("#")
+let printStep (qs,a,qt) Aa Af W =
+    //let Ws = List.foldBack (fun (qs,a,qt) rst -> (qs,(nodeToString a),qt)::rst ) W List.empty
+    printfn("%A->%A:\t  %-10s W: %A") qs qt (nodeToString a) (List.length W)
+    //printMap Aa
+    //if transitions%100=0 then printf("\n")
+    //printf("#")
 
 let updateStats W =
     transitions <- transitions+1
@@ -28,15 +30,16 @@ let initA nodes L E i =
     List.fold (fun rst q -> Map.add q i rst ) emptyA E
     ;;
 
-let appendFront t W = W@[t]
-let appendBack  t W = t::W
+let appendFront t W = t::W
+let appendBack  t W = W@[t]
 
 let rec newW G (qs,a,qt) w cmps append = function
-    | [] -> w
-    | (qs',a,qt')::xs when qs'=qt ->
-        newW G (qs,a,qt) (append (qs',a,qt') w) cmps append xs
-    | (qs',a,qt')::xs when (Set.contains qs' (QQ qs G cmps)) ->
-        newW G (qs,a,qt) (append (qs',a,qt') w) cmps append xs
+    //| [] -> w
+    | [] -> w@[(qs,a,qt)]
+    | (qs',a',qt')::xs when qs'=qt ->
+        newW G (qs,a,qt) (append (qs',a',qt') w) cmps append xs
+    //| (qs',a',qt')::xs when (Set.contains qs' (QQ qs G cmps)) ->
+    //    newW G (qs,a,qt) (append (qs',a',qt') w) cmps append xs
     | x::xs -> newW G (qs,a,qt) w cmps append xs ;;
 
 let rec MFP2 L Aa f F W cmps =
@@ -45,8 +48,8 @@ let rec MFP2 L Aa f F W cmps =
     | (qs,a,qt)::xs ->
         let Af = f Aa (qs,a,qt)
         let analysisChanged = (not (subeq Af (Map.find qt Aa) L))
-        printStep (qs,a,qt) Af W
-        updateStats W
+        printStep (qs,a,qt) Aa Af xs
+        updateStats xs
         if analysisChanged then
             let updatedAnalysis = (Map.add qt (Af+(Map.find qt Aa)) Aa)
             let updatedWorkList = newW F (qs,a,qt) xs cmps appendBack F
@@ -78,7 +81,8 @@ let reachingDefinition graph ex non =
     let exVal = (exVal_RD graph non)
     let cmps = (components graph (allNodes graph))
     let f = f_RD non cmps graph L
-    let res = MFP L graph E exVal cmps f
+    let res_t = MFP L graph E exVal cmps f
+    let res = List.fold (fun rst q -> Map.add q ( (Map.find q rst)+(con_RD graph cmps rst q L) ) rst ) res_t E
     printfn "\n"
     Map.iter (fun q state ->
         printf("q%A:\t") q
