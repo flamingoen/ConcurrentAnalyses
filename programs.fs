@@ -2,19 +2,27 @@ module programs
 
 let testProgram = "
 par
-    do true -> x:=1 od
+    var x;
+    loop true -> ch?x pool
 []
-    do true -> y:=1; skip od
+    var y;
+    y := 1;
+    loop
+    y>0 -> ch!1 []
+    y=0 -> ch!-1 []
+    y<0 -> ch!0
+    pool
 rap
 "
 
 let myOwnVarsProgram = "
 par
     var x;
-    x:=4
+    x:=4;
+    ch!x
 []
     var x;
-    x:=10
+    ch?x
 rap
 "
 
@@ -38,9 +46,9 @@ par
     do true ->
         x := y + 1;
         if
-            y == 0 || x < y -> skip
+            y = 0 | x < y -> skip
         []
-            ~(y == 0) && ~(x < y) -> skip
+            ~(y = 0) & ~(x < y) -> skip
         fi;
         x := 0
     od
@@ -48,9 +56,9 @@ par
     do true ->
         y := x + 1;
         if
-            x == 0 || y < x -> skip
+            x = 0 | y < x -> skip
         []
-            ~(x == 0) && ~(y < x) -> skip
+            ~(x = 0) & ~(y < x) -> skip
         fi;
         y := 0
     od

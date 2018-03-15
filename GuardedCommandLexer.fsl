@@ -29,14 +29,14 @@ let op =
     "*",        MLT;
     "/",        DIV;
     "%",        MOD;
-    "==",       EQ;
+    "=",        EQ;
     "<",        LT;
     ">",        GT;
     "<=",       LEQ;
     ">=",       GEQ;
     "!=",       NEQ;
-    "&&",       LAND;
-    "||",       LOR;
+    "&",        LAND;
+    "|",        LOR;
     "!",        SEND;
     "?",        RECV;
     "->",       IMP;
@@ -49,7 +49,7 @@ let whitespace  = [' ' '\t']
 let newline     = "\n\r" | '\n' | '\r'
 let int         = '-'?digit+
 let id          = char(char|digit|['_'])*
-let operator  = "+" | "-" | "*" | "/" | "%" | "==" | "<" | ">" | "<=" | ">=" | "!=" | "&&" | "||" | "!" | "?" | "->"
+let operator  = "+" | "-" | "*" | "/" | "%" | "=" | "<" | ">" | "<=" | ">=" | "!=" | "&" | "|" | "!" | "?" | "->"
 
 rule tokenize = parse
 | whitespace    { tokenize lexbuf }

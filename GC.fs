@@ -11,14 +11,14 @@ let op =
     Mlt,    "*";
     Div,    "/";
     Mod,    "%";
-    Eq,     "==";
+    Eq,     "=";
     Lt,     "<";
     Gt,     ">";
     Leq,    "<=";
     Geq,    ">=";
     Neq,    "!=";
-    Land,   " && ";
-    Lor,    " || ";
+    Land,   " & ";
+    Lor,    " | ";
     Send,   "!";
     Recv,   "?";
     ] |> Map.ofList ;;
