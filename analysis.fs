@@ -9,10 +9,10 @@ let mutable maxWSize = 0
 
 let printStep (qs,a,qt) Aa Af W =
     //let Ws = List.foldBack (fun (qs,a,qt) rst -> (qs,(nodeToString a),qt)::rst ) W List.empty
-    printfn("%A->%A:\t  %-10s W: %A") qs qt (nodeToString a) (List.length W)
+    //printfn("%A->%A:\t  %-10s W: %A") qs qt (nodeToString a) (List.length W)
     //printMap Aa
-    //if transitions%100=0 then printf("\n")
-    //printf("#")
+    if transitions%100=0 then printf("\n")
+    printf("#")
 
 let updateStats W =
     transitions <- transitions+1
@@ -92,9 +92,17 @@ let reachingDefinition graph ex non =
         ) res
     printfn("\nTransitions taken: %A    Max worklist size: %A    Nodes: %i    Transitions: %i") transitions maxWSize (Set.count (allNodes graph)) (List.length graph)
 
+let rec condenseState state = function
+    | []        -> Set.empty
+    | var::xs   ->
+        let varSet,extract = Set.partition (fun (x,signs,o) -> x=var ) state
+        let conVarSet = Set.fold (fun rst (x,sign,o) -> Set.add (x,sign) rst ) Set.empty varSet
+        Set.add (var,(Set.foldBack (fun (x,s) rst -> if rst="" then s+rst else s+","+rst ) conVarSet  "")) (condenseState extract xs)
+
+
 let detectionOfSignsAnalysis graph ex startVal =
     printfn"\nDetection of signs:"
-    let L = (btm_s, top_s, order_s)
+    let L = (btm_s, (top_s graph), order_s)
     let E = List.fold (fun rst (qs,qt) -> qs::rst ) [] ex
     let exVal = exVal_s graph
     let cmps = (components graph (allNodes graph))
@@ -102,9 +110,11 @@ let detectionOfSignsAnalysis graph ex startVal =
     let res_t = MFP L graph E exVal cmps f
     let res = List.fold (fun rst q -> Map.add q ( (Map.find q rst)+(con_S graph cmps rst q L) ) rst ) res_t E
     printfn "\n"
+    let colRes = Map.fold (fun rst q state ->
+        Map.add q ( condenseState state (Set.toList (varsIn state)) ) rst ) Map.empty res
     Map.iter (fun q state ->
-        printf("q%A:\t") q
-        Set.iter (fun (x,s,o) -> printf("%s->%A\t" ) x s) state
+        printf("q%-15A") q
+        Set.iter (fun (x,s) -> printf("%5s-> %-5s " ) x s) state
         printfn("")
-        ) res
+        ) colRes
     printfn("\nTransitions taken: %A    Max worklist size: %A    Nodes: %i    Transitions: %i") transitions maxWSize (Set.count (allNodes graph)) (List.length graph)
