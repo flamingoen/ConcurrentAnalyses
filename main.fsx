@@ -21,28 +21,37 @@ open graphViz
 // ANALYSES
 #load "lattice.fs"
 #load "bitVectorAnalyses.fs"
+#load "tablesSign.fs"
+#load "signAnalysis.fs"
 #load "analysis.fs"
 open analysis
 
-let syntaxTree = parse bakeryAlgorithm
+let program = bakeryAlgorithm
 
-let (graph,exVal) = ( pgGen syntaxTree )
+let syntaxTree =
+    try parse program
+    with e -> failwith ("could not parse program:\n"+program)
 
-//let rec QC i map = function
-//    | []          -> map
-//    | nodes::rst  -> QC (i+1) (Set.fold (fun rst node -> Map.add node i rst) map nodes) rst
-//
-//let C = (components graph (allNodes graph))
-//printList C
-//printMap (QC 0 Map.empty (components graph (allNodes graph)))
+let (graph,ex) = ( pgGen syntaxTree )
+let (graphProduct,exValProduct) = productGraph graph ex
 
-makeGraph graph exVal
-#time
-reachingDefinition graph exVal -1
-#time
+// GRAPHVIZ
+makeGraph graph ex
+makeProductGraph graphProduct ex
 
-//let (graphProduct,exValProduct) = productGraph graph exVal
-//makeProductGraph graphProduct exVal
+// REACHING DEFINITION
 //#time
-//reachingDefinition graphProduct exValProduct (Set.ofList [-1])
+//reachingDefinition graph ex -1
+//#time
+//#time
+//detectionOfSignsAnalysis graphProduct exValProduct (Set.ofList [-1])
+//#time
+
+
+// DETECTION OF SIGNS
+#time
+detectionOfSignsAnalysis graph ex
+#time
+//#time
+//detectionOfSignsAnalysis graphProduct exValProduct
 //#time
