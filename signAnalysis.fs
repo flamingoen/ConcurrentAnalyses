@@ -14,8 +14,8 @@ let order_s s1 s2 = Set.(+) (s1,s2)
 
 let exVal_s G =
     let vars = removeLocalVars (varsInGraph G)
-    //Set.fold (fun rst var -> (Set.ofList [])+rst) Set.empty vars
-    Set.fold (fun rst var -> (Set.ofList [(var,"0",Initial)])+rst) Set.empty vars
+    Set.fold (fun rst var -> (Set.ofList [])+rst) Set.empty vars
+    //Set.fold (fun rst var -> (Set.ofList [(var,"0",Initial)])+rst) Set.empty vars
 
 let con_S G cmps Aa q L =
     let distachedNodes = QQ q G cmps
@@ -84,9 +84,20 @@ let f_s G cmps L Aa (qs,a,qt) =
     let sigma = (Map.find qs Aa)
     let con_qt = (con_S G cmps Aa qt L)
     match a with
-    | Node( Assign, Node(X(x),_)::fu::[] )  -> (update x (As sigma fu) sigma) + con_qt
-    | Node( Decl,   Node(X(x),_)::xs )      -> (update x (Set.ofList ["0"]) sigma) + con_qt
-    | Node( Send,   Node(C(ch),_)::x::xs)   -> (update ch (As sigma x) sigma) + con_qt
-    | Node( Recv,   ch::Node(X(x),_)::xs)   -> (update x (As sigma ch) sigma) + con_qt
-    | Node( b, _ ) when isBoolOp b          -> (boolFilter a sigma) + con_qt
+    | Node( Assign, Node(X(x),_)::fu::[] )  ->
+        (update x (As sigma fu) sigma) + con_qt
+    | Node( Assign, Node(A(ar),l)::fu::[] ) ->
+        (update ar (As sigma fu+(As sigma (Node(A(ar),l)))) sigma) + con_qt
+    | Node( Decl,   Node(X(x),_)::xs )      ->
+        (update x (Set.ofList ["0"]) sigma) + con_qt
+    | Node( Decl,   Node(A(ar),l)::xs)      ->
+        (update ar ((As sigma (Node(A(ar),l)))+(Set.ofList ["0"])) sigma) + con_qt
+    | Node( Send,   Node(C(ch),_)::x::xs)   ->
+        (update ch (As sigma x) sigma) + con_qt
+    | Node( Recv,   ch::Node(X(x),_)::xs)   ->
+        (update x (As sigma ch) sigma) + con_qt
+    | Node( Recv,   ch::Node(A(ar),l)::xs)   ->
+        (update ar ( (As sigma ch) + (As sigma (Node(A(ar),l))) ) sigma) + con_qt
+    | Node( b, _ ) when isBoolOp b          ->
+        (boolFilter a sigma) + con_qt
     | _ -> sigma + con_qt

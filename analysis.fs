@@ -100,7 +100,7 @@ let rec condenseState state = function
         Set.add (var,(Set.foldBack (fun (x,s) rst -> if rst="" then s+rst else s+","+rst ) conVarSet  "")) (condenseState extract xs)
 
 
-let detectionOfSignsAnalysis graph ex startVal =
+let detectionOfSignsAnalysis graph ex =
     printfn"\nDetection of signs:"
     let L = (btm_s, (top_s graph), order_s)
     let E = List.fold (fun rst (qs,qt) -> qs::rst ) [] ex
