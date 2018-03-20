@@ -15,6 +15,17 @@ par
 rap
 "
 
+let arrayTest = "
+par
+    var A[10];
+    var x;
+    loop
+        x<10 -> A[x] := x+1
+    pool
+rap
+
+"
+
 let myOwnVarsProgram = "
 par
     var x;
