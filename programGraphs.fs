@@ -140,6 +140,8 @@ let rec components G Q =
         let newQ = Q-comp
         comp::(components G newQ)
 
+let inverse G = List.foldBack (fun (qs,a,qt) rst -> (qt,a,qs)::rst ) G []
+
 // ##### PRODUCT GRAPH GENERATOR #####
 
 let addToNodes nodes (qs,a,qt) = Set.fold (fun rst q -> Set.add (qs+q,a,qt+q) rst) Set.empty nodes

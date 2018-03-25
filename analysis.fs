@@ -92,13 +92,33 @@ let reachingDefinition graph ex non =
         ) res
     printfn("\nTransitions taken: %A    Max worklist size: %A    Nodes: %i    Transitions: %i") transitions maxWSize (Set.count (allNodes graph)) (List.length graph)
 
+let liveVariables G ex =
+    printf"\nLive variables:"
+    let graph = inverse G
+    let L = (btm_LV, (top_LV graph), order_LV)
+    let E = List.fold (fun rst (qs,qt) -> qt::rst ) [] ex
+    let exVal = exVal_LV
+    let cmps = (components graph (allNodes graph))
+    let f = f_LV cmps graph L
+    let res_t = MFP L graph E exVal cmps f
+    let res = List.fold (fun rst q -> Map.add q ( (Map.find q rst)+(con_LV graph cmps rst q L) ) rst ) res_t E
+    printfn("\n")
+    Map.iter (fun q state ->
+        printf("q%A:\t") q
+        (Set.iter (fun (x,s) -> printf("%s " ) x) state)
+        printfn("")
+        ) res
+    printfn("\nTransitions taken: %A    Max worklist size: %A    Nodes: %i    Transitions: %i") transitions maxWSize (Set.count (allNodes graph)) (List.length graph)
+
+
+
+
 let rec condenseState state = function
     | []        -> Set.empty
     | var::xs   ->
         let varSet,extract = Set.partition (fun (x,signs,o) -> x=var ) state
         let conVarSet = Set.fold (fun rst (x,sign,o) -> Set.add (x,sign) rst ) Set.empty varSet
         Set.add (var,(Set.foldBack (fun (x,s) rst -> if rst="" then s+rst else s+","+rst ) conVarSet  "")) (condenseState extract xs)
-
 
 let detectionOfSignsAnalysis graph ex =
     printfn"\nDetection of signs:"

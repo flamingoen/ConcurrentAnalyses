@@ -34,9 +34,10 @@ let con_RD G cmps Aa q L =
 
 let kill_RD non Aa (qs,a,qt) L =
     match a with
-    | Node( Assign, Node(X(x),_)::xs )      -> Set.filter (fun ( var,q1,q2,s) -> var=x ) (Map.find qs Aa )
-    | Node( Decl,   Node(X(x),_)::xs )      -> Set.filter (fun ( var,q1,q2,s) -> var=x ) (Map.find qs Aa )
-    | Node( Recv,   ch::Node(X(x),_)::xs)   -> Set.filter (fun ( var,q1,q2,s) -> var=x ) (Map.find qs Aa )
+    | Node( Assign, Node(X(x),_)::xs )      -> Set.filter (fun ( var,q1,q2,o) -> var=x ) (Map.find qs Aa )
+    | Node( Decl,   Node(X(x),_)::xs )      -> Set.filter (fun ( var,q1,q2,o) -> var=x ) (Map.find qs Aa )
+    | Node( Decl,   Node(A(arr),_)::xs )    -> Set.filter (fun ( var,q1,q2,o) -> var=arr ) (Map.find qs Aa )
+    | Node( Recv,   ch::Node(X(x),_)::xs)   -> Set.filter (fun ( var,q1,q2,o) -> var=x ) (Map.find qs Aa )
     | _ -> Set.empty
     ;;
 
@@ -56,3 +57,42 @@ let gen_RD non Aa (qs,a,qt) L =
     ;;
 
 let f_RD non cmps G L Aa t = BVF (kill_RD non) (gen_RD non) (con_RD G cmps) Aa t L
+
+
+
+// #### Live variables ####
+
+let btm_LV = Set.empty
+let top_LV G = Set.empty
+let order_LV s1 s2 = Set.(+) (s1,s2) ;;
+let exVal_LV = Set.empty
+
+let rec FV = function
+    | Node(A(x),_) when isLocal x  -> Set.ofList [(x,Local)]
+    | Node(A(x),_)                 -> Set.ofList [(x,Global)]
+    | Node(X(x),_)                 -> Set.ofList [(x,Global)]
+    | Node(X(x),_) when isLocal x  -> Set.ofList [(x,Local)]
+    | Node(_,lst)                  -> List.fold (fun rst x -> rst + (FV x)) Set.empty lst
+    ;;
+
+let con_LV G cmps Aa q L =
+    let distachedNodes = QQ q G cmps
+    let cc = Set.fold (fun rst q -> rst + (Set.filter (fun (v,o) -> o=Global ) (Map.find q Aa)) ) Set.empty distachedNodes
+    Set.fold (fun rst (v,o) -> Set.add (v,Concurrent) rst ) Set.empty cc
+    ;;
+
+let kill_LV Aa (qs,a,qt) L =
+    match a with
+    | Node( Assign, Node(X(x),_)::xs )   -> Set.filter (fun (var,o) -> var=x ) (Map.find qs Aa )
+    | Node( Decl,   Node(X(x),_)::xs )   -> Set.filter (fun (var,o) -> var=x ) (Map.find qs Aa )
+    | Node( Decl,   Node(A(arr),_)::xs ) -> Set.filter (fun (var,o) -> var=arr ) (Map.find qs Aa )
+    | _                                  -> Set.empty
+
+let gen_LV Aa (qs,a,qt) L =
+    match a with
+    | Node( Assign, x::arthm::xs )  -> FV arthm
+    | Node( Send,   ch::arthm::xs)  -> FV arthm
+    | _ -> Set.empty
+    ;;
+
+let f_LV cmps G L Aa t = BVF (kill_LV) (gen_LV) (con_LV G cmps) Aa t L
