@@ -4,10 +4,15 @@ open lattice
 open bitVectorAnalyses
 open signAnalysis
 
+
+// ########################################
+// ##### Information prints and stuff #####
+// ########################################
+
 let mutable transitions = 0
 let mutable maxWSize = 0
 
-let printStep (qs,a,qt) Aa Af W =
+let printStep (qs,a,qt) Aa Af W L =
     //let Ws = List.foldBack (fun (qs,a,qt) rst -> (qs,(nodeToString a),qt)::rst ) W List.empty
     //printfn("%A->%A:\t  %-10s W: %A") qs qt (nodeToString a) (List.length W)
     //printMap Aa
@@ -35,12 +40,9 @@ let appendFront t W = t::W
 let appendBack  t W = W@[t]
 
 let rec newW G (qs,a,qt) w cmps append = function
-    //| [] -> w
     | [] -> w@[(qs,a,qt)]
     | (qs',a',qt')::xs when qs'=qt ->
         newW G (qs,a,qt) (append (qs',a',qt') w) cmps append xs
-    //| (qs',a',qt')::xs when (Set.contains qs' (QQ qs G cmps)) ->
-    //    newW G (qs,a,qt) (append (qs',a',qt') w) cmps append xs
     | x::xs -> newW G (qs,a,qt) w cmps append xs ;;
 
 let rec MFP2 L Aa f F W cmps =
@@ -49,10 +51,10 @@ let rec MFP2 L Aa f F W cmps =
     | (qs,a,qt)::xs ->
         let Af = f Aa (qs,a,qt)
         let analysisChanged = (not (subeq Af (Map.find qt Aa) L))
-        printStep (qs,a,qt) Aa Af xs
+        printStep (qs,a,qt) Aa Af xs L
         updateStats xs
         if analysisChanged then
-            let updatedAnalysis = (Map.add qt (Af+(Map.find qt Aa)) Aa)
+            let updatedAnalysis = (Map.add qt (lob Af (Map.find qt Aa) L) Aa)
             let updatedWorkList = newW F (qs,a,qt) xs cmps appendBack F
             MFP2 L updatedAnalysis f F updatedWorkList cmps
         else MFP2 L Aa f F xs cmps
@@ -110,9 +112,6 @@ let liveVariables G ex =
         ) res
     printfn("\nTransitions taken: %A    Max worklist size: %A    Nodes: %i    Transitions: %i") transitions maxWSize (Set.count (allNodes graph)) (List.length graph)
 
-
-
-
 let rec condenseState state = function
     | []        -> Set.empty
     | var::xs   ->
@@ -138,3 +137,17 @@ let detectionOfSignsAnalysis graph ex =
         printfn("")
         ) colRes
     printfn("\nTransitions taken: %A    Max worklist size: %A    Nodes: %i    Transitions: %i") transitions maxWSize (Set.count (allNodes graph)) (List.length graph)
+    res
+
+
+let constraintAnalysis graph ex =
+    printfn"\nConstraint analysis"
+    let L = ((btm_C graph),top_C,order_C)
+    let Ls = (btm_s, (top_s graph), order_s)
+    let E = List.fold (fun rst (qs,qt) -> qs::rst ) [] ex
+    let exVal = exVal_C
+    let cmps = (components graph (allNodes graph))
+    let signs = (detectionOfSignsAnalysis graph ex)
+    let f = f_C signs Ls L
+    let res = MFP L graph E exVal cmps f
+    printMap res

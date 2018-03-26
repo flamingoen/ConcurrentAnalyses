@@ -1,5 +1,6 @@
 module signAnalysis
 open tablesSign
+open lattice
 
 let btm_s = Set.empty ;;
 
@@ -27,7 +28,7 @@ let signOf x sigma = Set.fold (fun rst (y,sign,o) -> if y=x then Set.add sign rs
 
 let magic s1 s2 op = Set.fold (fun rst e1 -> Set.fold (fun rst e2 -> rst+(op (e1,e2))) Set.empty s2) Set.empty s1
 
-let isBoolOp b = List.contains b [Gt;Lt;Eq;Geq;Leq;Neq;Not;Land;Lor]
+let isBoolOp b = List.contains b [Gt;Lt;Eq;Geq;Leq;Neq;Not;Land;Lor;True;False]
 
 let rec As sigma = function
     | Node(X(x),_)          -> signOf x sigma
@@ -101,3 +102,39 @@ let f_s G cmps L Aa (qs,a,qt) =
     | Node( b, _ ) when isBoolOp b          ->
         (boolFilter a sigma) + con_qt
     | _ -> sigma + con_qt
+
+
+
+
+
+
+// ###############################
+// ##### Constraint analysis #####
+// ###############################
+
+let removeOrigin set = Set.fold (fun rst (v,s,o) -> Set.add (v,s) rst ) Set.empty set
+
+let removeConcurrent set = removeOrigin (Set.filter (fun (v,s,o) -> (not (o=Concurrent)) ) set)
+
+let btm_C G =
+    Set.fold (fun rst var -> (Set.ofList [(var,"0");(var,"+");(var,"-");(var,"T")]) + rst ) Set.empty (varsInGraph G)
+let top_C = Set.empty
+let order_C s1 s2 = Set.intersect s1 s2
+let exVal_C = Set.empty
+
+let f_C signs Ls L Aa (qs,a,qt) =
+    let sigma = (Map.find qs Aa)
+    let signma = (Map.find qs signs)
+    match a with
+    | Node( b, _ ) when isBoolOp b ->
+        let vars = varsInA a
+        let filtered = Set.filter (fun (x,s) -> (Set.contains x vars)) (removeOrigin (boolFilter a (top Ls)))
+        (filtered - (removeConcurrent signma)) + sigma
+    | _                            -> sigma
+
+
+
+
+
+
+// doorstop
