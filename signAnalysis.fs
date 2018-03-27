@@ -117,12 +117,32 @@ let order_C s1 s2 = Set.intersect s1 s2
 let exVal_C = Set.empty
 let con_C Aa q L = Map.find q Aa
 
-let f_C Ls Lc Is Sc (qs,a,qt) =
+let f_C Ls Lc Ss Sc (qs,a,qt) =
     match a with
     | Node( b, _ ) when isBoolOp b ->
         let vars = varsInA a
         let filtered = Set.filter (fun (x,s) -> (Set.contains x vars)) (removeOrigin (boolFilter a (top Ls) ) )
-        (filtered - (removeConcurrent (Map.find qs Is))) + Sc
+        (filtered - (removeConcurrent Ss)) + Sc
     | _ -> Sc
 
+
+// ########################
+// ##### Combination  #####
+// ########################
+
+let exVal_CS G            = ((exVal_s G),exVal_C)
+let btm_CS G              = (btm_s,(btm_C G))
+let top_CS G              = ((top_s G),top_C)
+let order_CS (s1,c1) (s2,c2) = ((order_s s1 s2),(order_C c1 c2))
+let con_CS G cmps Aa q L  =
+    let (_,c) = Map.find q Aa
+    let s = Map.fold (fun rst q (a,b) -> Map.add q a rst) Map.empty Aa
+    ((con_S G cmps s q L),c)
+
+let f_CS Ls Lc (Ss,Sc) t =
+    let Sc' = f_C Ls Lc Ss Sc t
+    let Ss' = f_s Ss t
+    (Ss',Sc')
+
+    
 // doorstop

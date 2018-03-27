@@ -45,9 +45,9 @@ let rec newW G (qs,a,qt) w append = function
         newW G (qs,a,qt) (append (qs',a',qt') w) append xs
     | x::xs -> newW G (qs,a,qt) w append xs ;;
 
-let rec MFP2 L Aa f con F W =
+let rec MFP2 L E Aa f con F W =
     match W with
-    | [] -> Aa
+    | [] -> List.fold (fun rst q -> Map.add q ( lob (Map.find q rst) (con rst q L) L ) rst ) Aa E
     | (qs,a,qt)::xs ->
         let Aa' = lob (f (Map.find qs Aa) (qs,a,qt)) (con Aa qt L) L
         let analysisChanged = (not (subeq Aa' (Map.find qt Aa) L))
@@ -56,13 +56,13 @@ let rec MFP2 L Aa f con F W =
         if analysisChanged then
             let updatedAnalysis = (Map.add qt (lob Aa' (Map.find qt Aa) L) Aa)
             let updatedWorkList = newW F (qs,a,qt) xs appendBack F
-            MFP2 L updatedAnalysis f con F updatedWorkList
-        else MFP2 L Aa f con F xs
+            MFP2 L E updatedAnalysis f con F updatedWorkList
+        else MFP2 L E Aa f con F xs
 
 let MFP L G E i f con =
     let Q = allNodes G
     let A = initA Q L E i
-    MFP2 L A f con G G
+    MFP2 L E A f con G G
     ;;
 
 let rec varsInA = function
@@ -85,8 +85,7 @@ let reachingDefinition graph ex non =
     let cmps = (components graph (allNodes graph))
     let f = f_RD non L
     let con = con_RD graph cmps
-    let res_t = MFP L graph E exVal f con
-    let res = List.fold (fun rst q -> Map.add q ( (Map.find q rst)+(con_RD graph cmps rst q L) ) rst ) res_t E
+    let res = MFP L graph E exVal f con
     printfn "\n"
     Map.iter (fun q state ->
         printf("q%A:\t") q
@@ -104,8 +103,7 @@ let liveVariables G ex =
     let cmps = (components graph (allNodes graph))
     let f = f_LV L
     let con = con_LV graph cmps
-    let res_t = MFP L graph E exVal f con
-    let res = List.fold (fun rst q -> Map.add q ( (Map.find q rst)+(con_LV graph cmps rst q L) ) rst ) res_t E
+    let res = MFP L graph E exVal f con
     printfn("\n")
     Map.iter (fun q state ->
         printf("q%A:\t") q
@@ -129,8 +127,7 @@ let detectionOfSignsAnalysis graph ex =
     let cmps = (components graph (allNodes graph))
     let f = f_s
     let con = con_S graph cmps
-    let res_t = MFP L graph E exVal f con
-    let res = List.fold (fun rst q -> Map.add q ( (Map.find q rst)+(con_S graph cmps rst q L) ) rst ) res_t E
+    let res = MFP L graph E exVal f con
     printfn "\n"
     let colRes = Map.fold (fun rst q state ->
         Map.add q ( condenseState state (Set.toList (varsIn state)) ) rst ) Map.empty res
@@ -140,16 +137,24 @@ let detectionOfSignsAnalysis graph ex =
         printfn("")
         ) colRes
     printfn("\nTransitions taken: %A    Max worklist size: %A    Nodes: %i    Transitions: %i") transitions maxWSize (Set.count (allNodes graph)) (List.length graph)
-    res
 
 let constraintAnalysis graph ex =
     printfn"\nConstraint analysis"
+    let cmps = (components graph (allNodes graph))
+    let L = ((btm_CS graph),(top_CS graph),order_CS)
     let Lc = ((btm_C graph),top_C,order_C)
     let Ls = (btm_s, (top_s graph), order_s)
     let E = List.fold (fun rst (qs,qt) -> qs::rst ) [] ex
-    let exVal = exVal_C
-    let Ss = (detectionOfSignsAnalysis graph ex)
-    let f = f_C Ls Lc Ss
-    let con = con_C
-    let res = MFP Lc graph E exVal f con
-    printMap res
+    let exVal = exVal_CS graph
+    let f = f_CS Ls Lc
+    let con = con_CS graph cmps
+    let res = MFP L graph E exVal f con
+    printfn "\n"
+    let colRes = Map.fold (fun rst q (s,c) ->
+        Map.add q ( condenseState s (Set.toList (varsIn s)) ) rst ) Map.empty res
+    Map.iter (fun q state ->
+        printf("q%-15A") q
+        Set.iter (fun (x,s) -> printf("%5s-> %-5s " ) x s) state
+        printfn("")
+        ) colRes
+    printfn("\nTransitions taken: %A    Max worklist size: %A    Nodes: %i    Transitions: %i") transitions maxWSize (Set.count (allNodes graph)) (List.length graph)
