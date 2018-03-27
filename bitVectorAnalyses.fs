@@ -1,10 +1,9 @@
 module bitVectorAnalyses
 open lattice
 
-let BVF kill gen con Aa (qs,a,qt) L =
-    let sigma = (Map.find qs Aa)
+let BVF kill gen state (qs,a,qt) L =
     let t = (qs,a,qt)
-    lob ((Set.difference sigma (kill Aa t L)) + (gen Aa t L)) (con Aa qs L) L
+    (Set.difference state (kill state t L)) + (gen state t L)
 
 // #### REACHING DEFINITIONS ####
 
@@ -32,16 +31,16 @@ let con_RD G cmps Aa q L =
     Set.fold (fun rst (v,q1,q2,c) -> Set.add (v,q1,q2,Concurrent) rst ) Set.empty cc
     ;;
 
-let kill_RD non Aa (qs,a,qt) L =
+let kill_RD non state (qs,a,qt) L =
     match a with
-    | Node( Assign, Node(X(x),_)::xs )      -> Set.filter (fun ( var,q1,q2,o) -> var=x ) (Map.find qs Aa )
-    | Node( Decl,   Node(X(x),_)::xs )      -> Set.filter (fun ( var,q1,q2,o) -> var=x ) (Map.find qs Aa )
-    | Node( Decl,   Node(A(arr),_)::xs )    -> Set.filter (fun ( var,q1,q2,o) -> var=arr ) (Map.find qs Aa )
-    | Node( Recv,   ch::Node(X(x),_)::xs)   -> Set.filter (fun ( var,q1,q2,o) -> var=x ) (Map.find qs Aa )
+    | Node( Assign, Node(X(x),_)::xs )      -> Set.filter (fun ( var,q1,q2,o) -> var=x ) state
+    | Node( Decl,   Node(X(x),_)::xs )      -> Set.filter (fun ( var,q1,q2,o) -> var=x ) state
+    | Node( Decl,   Node(A(arr),_)::xs )    -> Set.filter (fun ( var,q1,q2,o) -> var=arr ) state
+    | Node( Recv,   ch::Node(X(x),_)::xs)   -> Set.filter (fun ( var,q1,q2,o) -> var=x ) state
     | _ -> Set.empty
     ;;
 
-let gen_RD non Aa (qs,a,qt) L =
+let gen_RD non state (qs,a,qt) L =
     match a with
     | Node( Assign, Node(X(x),_)::xs )      ->
         if isLocal x then Set.ofList [(x,qs,qt,Local )]
@@ -56,7 +55,7 @@ let gen_RD non Aa (qs,a,qt) L =
     | _ -> Set.empty
     ;;
 
-let f_RD non cmps G L Aa t = BVF (kill_RD non) (gen_RD non) (con_RD G cmps) Aa t L
+let f_RD non L state t = BVF (kill_RD non) (gen_RD non) state t L
 
 
 
@@ -81,18 +80,18 @@ let con_LV G cmps Aa q L =
     Set.fold (fun rst (v,o) -> Set.add (v,Concurrent) rst ) Set.empty cc
     ;;
 
-let kill_LV Aa (qs,a,qt) L =
+let kill_LV state (qs,a,qt) L =
     match a with
-    | Node( Assign, Node(X(x),_)::xs )   -> Set.filter (fun (var,o) -> var=x ) (Map.find qs Aa )
-    | Node( Decl,   Node(X(x),_)::xs )   -> Set.filter (fun (var,o) -> var=x ) (Map.find qs Aa )
-    | Node( Decl,   Node(A(arr),_)::xs ) -> Set.filter (fun (var,o) -> var=arr ) (Map.find qs Aa )
+    | Node( Assign, Node(X(x),_)::xs )   -> Set.filter (fun (var,o) -> var=x ) state
+    | Node( Decl,   Node(X(x),_)::xs )   -> Set.filter (fun (var,o) -> var=x ) state
+    | Node( Decl,   Node(A(arr),_)::xs ) -> Set.filter (fun (var,o) -> var=arr ) state
     | _                                  -> Set.empty
 
-let gen_LV Aa (qs,a,qt) L =
+let gen_LV state (qs,a,qt) L =
     match a with
     | Node( Assign, x::arthm::xs )  -> FV arthm
     | Node( Send,   ch::arthm::xs)  -> FV arthm
     | _ -> Set.empty
     ;;
 
-let f_LV cmps G L Aa t = BVF (kill_LV) (gen_LV) (con_LV G cmps) Aa t L
+let f_LV L state t = BVF (kill_LV) (gen_LV) state t L

@@ -24,88 +24,82 @@ let con_S G cmps Aa q L =
     Set.fold (fun rst (var,sign,origin) -> Set.add (var,sign,Concurrent) rst ) Set.empty CC
 
 
-let signOf x sigma = Set.fold (fun rst (y,sign,o) -> if y=x then Set.add sign rst else rst ) Set.empty sigma
+let signOf x state = Set.fold (fun rst (y,sign,o) -> if y=x then Set.add sign rst else rst ) Set.empty state
 
 let magic s1 s2 op = Set.fold (fun rst e1 -> Set.fold (fun rst e2 -> rst+(op (e1,e2))) Set.empty s2) Set.empty s1
 
 let isBoolOp b = List.contains b [Gt;Lt;Eq;Geq;Leq;Neq;Not;Land;Lor;True;False]
 
-let rec As sigma = function
-    | Node(X(x),_)          -> signOf x sigma
-    | Node(A(arr),_)        -> signOf arr sigma
-    | Node(C(ch),_)         -> signOf ch sigma
+let rec As state = function
+    | Node(X(x),_)          -> signOf x state
+    | Node(A(arr),_)        -> signOf arr state
+    | Node(C(ch),_)         -> signOf ch state
     | Node(N(0),_)          -> Set.ofList ["0"]
     | Node(N(n),_) when n>0 -> Set.ofList ["+"]
     | Node(N(n),_) when n<0 -> Set.ofList ["-"]
-    | Node(Pl,a1::a2::_)    -> magic (As sigma a1) (As sigma a2) plus
-    | Node(Mi,a1::a2::_)    -> magic (As sigma a1) (As sigma a2) minus
-    | Node(Mlt,a1::a2::_)   -> magic (As sigma a1) (As sigma a2) multi
-    | Node(Div,a1::a2::_)   -> magic (As sigma a1) (As sigma a2) divide
+    | Node(Pl,a1::a2::_)    -> magic (As state a1) (As state a2) plus
+    | Node(Mi,a1::a2::_)    -> magic (As state a1) (As state a2) minus
+    | Node(Mlt,a1::a2::_)   -> magic (As state a1) (As state a2) multi
+    | Node(Div,a1::a2::_)   -> magic (As state a1) (As state a2) divide
     | Node(a,_)             -> failwith("In As: unknown match for action "+(string a))
 
-let rec Bs sigma = function
+let rec Bs state = function
     | Node(True,_)          -> Set.ofList [True]
     | Node(False,_)         -> Set.ofList [False]
-    | Node(Gt,a1::a2::_)    -> magic (As sigma a1) (As sigma a2) greater
-    | Node(Lt,a1::a2::_)    -> magic (As sigma a1) (As sigma a2) less
-    | Node(Eq,a1::a2::_)    -> magic (As sigma a1) (As sigma a2) equal
-    | Node(Geq,a1::a2::_)   -> magic (As sigma a1) (As sigma a2) greaterEq
-    | Node(Leq,a1::a2::_)   -> magic (As sigma a1) (As sigma a2) lessEq
-    | Node(Neq,a1::a2::_)   -> magic (As sigma a1) (As sigma a2) notEqual
-    | Node(Not,b1::_)       -> Set.fold (fun rst b -> _not b ) Set.empty (Bs sigma b1)
-    | Node(Lor,b1::b2::_)   -> magic (Bs sigma b1) (Bs sigma b2) _or
-    | Node(Land,b1::b2::_)  -> magic (Bs sigma b1) (Bs sigma b2) _and
+    | Node(Gt,a1::a2::_)    -> magic (As state a1) (As state a2) greater
+    | Node(Lt,a1::a2::_)    -> magic (As state a1) (As state a2) less
+    | Node(Eq,a1::a2::_)    -> magic (As state a1) (As state a2) equal
+    | Node(Geq,a1::a2::_)   -> magic (As state a1) (As state a2) greaterEq
+    | Node(Leq,a1::a2::_)   -> magic (As state a1) (As state a2) lessEq
+    | Node(Neq,a1::a2::_)   -> magic (As state a1) (As state a2) notEqual
+    | Node(Not,b1::_)       -> Set.fold (fun rst b -> _not b ) Set.empty (Bs state b1)
+    | Node(Lor,b1::b2::_)   -> magic (Bs state b1) (Bs state b2) _or
+    | Node(Land,b1::b2::_)  -> magic (Bs state b1) (Bs state b2) _and
     | Node(a,_)             -> failwith("In Bs: unknown match for action "+(string a))
 
-let rec basic sigma = function
+let rec basic state = function
     | []        -> [Set.empty]
     | var::xs   ->
-        let varSet,extract = Set.partition (fun (x,signs,o) -> x=var ) sigma
+        let varSet,extract = Set.partition (fun (x,signs,o) -> x=var ) state
         Set.fold (fun rst elem ->
             List.fold (fun rst' subset -> (Set.add elem subset)::rst' ) [] (basic extract xs)@rst
         ) [] varSet
 
-let varsIn sigma = Set.fold (fun rst (x,sign,o) -> Set.add x rst ) Set.empty sigma
+let varsIn state = Set.fold (fun rst (x,sign,o) -> Set.add x rst ) Set.empty state
 
-let boolFilter b sigma =
-    let basicList = basic sigma (Set.toList (varsIn sigma))
-    List.fold (fun rst sigma' ->
-        if (Set.contains True (Bs sigma' b)) then sigma' + rst
+let boolFilter b state =
+    let basicList = basic state (Set.toList (varsIn state))
+    List.fold (fun rst state' ->
+        if (Set.contains True (Bs state' b)) then state' + rst
         else rst
     ) Set.empty basicList
 
-let update x signs sigma =
-    let rSet = Set.filter (fun (y,s,o) -> not (x=y) ) sigma
+let update x signs state =
+    let rSet = Set.filter (fun (y,s,o) -> not (x=y) ) state
     Set.fold (fun rst sign ->
         if isLocal x then Set.add (x,sign,Local) rst
         else Set.add (x,sign,Global) rst
     ) rSet signs
 
-let f_s G cmps L Aa (qs,a,qt) =
-    let sigma = (Map.find qs Aa)
-    let con_qt = (con_S G cmps Aa qt L)
+let f_s state (qs,a,qt) =
     match a with
     | Node( Assign, Node(X(x),_)::fu::[] )  ->
-        (update x (As sigma fu) sigma) + con_qt
+        (update x (As state fu) state)
     | Node( Assign, Node(A(ar),l)::fu::[] ) ->
-        (update ar (As sigma fu+(As sigma (Node(A(ar),l)))) sigma) + con_qt
+        (update ar (As state fu+(As state (Node(A(ar),l)))) state)
     | Node( Decl,   Node(X(x),_)::xs )      ->
-        (update x (Set.ofList ["0"]) sigma) + con_qt
+        (update x (Set.ofList ["0"]) state)
     | Node( Decl,   Node(A(ar),l)::xs)      ->
-        (update ar ((As sigma (Node(A(ar),l)))+(Set.ofList ["0"])) sigma) + con_qt
+        (update ar ((As state (Node(A(ar),l)))+(Set.ofList ["0"])) state)
     | Node( Send,   Node(C(ch),_)::x::xs)   ->
-        (update ch (As sigma x) sigma) + con_qt
+        (update ch (As state x) state)
     | Node( Recv,   ch::Node(X(x),_)::xs)   ->
-        (update x (As sigma ch) sigma) + con_qt
-    | Node( Recv,   ch::Node(A(ar),l)::xs)   ->
-        (update ar ( (As sigma ch) + (As sigma (Node(A(ar),l))) ) sigma) + con_qt
+        (update x (As state ch) state)
+    | Node( Recv,   ch::Node(A(ar),l)::xs)  ->
+        (update ar ( (As state ch) + (As state (Node(A(ar),l))) ) state)
     | Node( b, _ ) when isBoolOp b          ->
-        (boolFilter a sigma) + con_qt
-    | _ -> sigma + con_qt
-
-
-
-
+        (boolFilter a state)
+    | _ -> state
 
 
 // ###############################
@@ -121,20 +115,14 @@ let btm_C G =
 let top_C = Set.empty
 let order_C s1 s2 = Set.intersect s1 s2
 let exVal_C = Set.empty
+let con_C Aa q L = Map.find q Aa
 
-let f_C signs Ls L Aa (qs,a,qt) =
-    let sigma = (Map.find qs Aa)
-    let signma = (Map.find qs signs)
+let f_C Ls Lc Is Sc (qs,a,qt) =
     match a with
     | Node( b, _ ) when isBoolOp b ->
         let vars = varsInA a
-        let filtered = Set.filter (fun (x,s) -> (Set.contains x vars)) (removeOrigin (boolFilter a (top Ls)))
-        (filtered - (removeConcurrent signma)) + sigma
-    | _                            -> sigma
-
-
-
-
-
+        let filtered = Set.filter (fun (x,s) -> (Set.contains x vars)) (removeOrigin (boolFilter a (top Ls) ) )
+        (filtered - (removeConcurrent (Map.find qs Is))) + Sc
+    | _ -> Sc
 
 // doorstop
