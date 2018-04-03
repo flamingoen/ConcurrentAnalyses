@@ -168,4 +168,4 @@ let productGraph graph exVal =
     let pg = productFromList graphList
     let initVal = List.fold (fun rst ((qs:int),qt,_) -> Set.add qs rst ) Set.empty exVal
     let endVal = List.fold (fun rst (qs,(qt:int),_) -> Set.add qt rst) Set.empty exVal
-    (pg,[(initVal,endVal)])
+    (pg,[(initVal,endVal,0)])
