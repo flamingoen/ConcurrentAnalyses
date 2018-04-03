@@ -1,18 +1,9 @@
 module programs
 
 let testProgram = "
-par
-    var x;
-    loop true -> ch?x pool
-[]
-    var y;
-    y := 1;
-    loop
-    y>0 -> ch!1 []
-    y=0 -> ch!-1 []
-    y<0 -> ch!0
-    pool
-rap
+x := 5;
+y := 10;
+z := x + y
 "
 
 let arrayTest = "
@@ -50,6 +41,26 @@ rap
 
 let simpleProgram = "
 par x:=1 [] x:=-1 rap
+"
+
+let testProgram2 = "
+par
+    y:=0;
+    x:=0;
+    if
+        true -> x:=1; skip
+    []
+        true -> x:=-1; skip
+    fi
+[]
+    if
+        x>0 -> skip; y:=1
+    []
+        true -> y:=-1
+    fi;
+    skip
+rap
+
 "
 
 let bakeryAlgorithm = "
