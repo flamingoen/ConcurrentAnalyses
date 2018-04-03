@@ -33,37 +33,37 @@ let rec Pg qs qt p id tree =
     match tree with
     | Node(Decl,Node(X(x),_)::_) ->
         let p' = Map.add x (x+"{"+(string id)+"}") p
-        ([(qs,(pUpdate p' tree),qt)],[],p')
+        ([(qs,(pUpdate p' tree),qt,id)],[],p')
     | Node(Decl,Node(A(arr),_)::_) ->
         let p' = Map.add arr (arr+"{"+(string id)+"}") p
-        ([(qs,(pUpdate p' tree),qt)],[],p')
+        ([(qs,(pUpdate p' tree),qt,id)],[],p')
     | Node(Assign,_)    ->
-        ([(qs,(pUpdate p tree),qt)],[],p)
+        ([(qs,(pUpdate p tree),qt,id)],[],p)
     | Node(Send,_)      ->
-        ([(qs,(pUpdate p tree),qt)],[],p)
+        ([(qs,(pUpdate p tree),qt,id)],[],p)
     | Node(Recv,_)      ->
-        ([(qs,(pUpdate p tree),qt)],[],p)
+        ([(qs,(pUpdate p tree),qt,id)],[],p)
     | Node(Skip,_)      ->
-        ([(qs,(pUpdate p tree),qt)],[],p)
+        ([(qs,(pUpdate p tree),qt,id)],[],p)
     | Node(P,t::[])     ->
         Pg qs qt p id t
     | Node(Cp,c1::c2::[]) ->
         let q1 = newstate()
         let q2 = newstate()
-        let (lst1,ie1,p1) = (Pg qs qt p (id+1) c1)
-        let (lst2,ie2,p2) = (Pg q1 q2 p (id+2) c2)
-        ( (List.append lst1 lst2), (q1,q2)::(List.append ie1 ie2), p )
+        let (lst1,ie1,p1) = (Pg qs qt p (id) c1)
+        let (lst2,ie2,p2) = (Pg q1 q2 p (id+1) c2)
+        ( (List.append lst1 lst2), (q1,q2,id+1)::(List.append ie1 ie2), p )
     | Node(If,cg::[])   ->
         Pg qs qt p id cg
     | Node(Do,gc::[])   ->
         let (lst,ie,p') = (Pg qs qs p id gc)
-        ((qs,(pUpdate p (doneCg gc)),qt)::lst,ie,Map.empty)
+        ((qs,(pUpdate p (doneCg gc)),qt,id)::lst,ie,Map.empty)
     | Node(Loop,[cg]) ->
         Pg qs qs p id cg
     | Node(Guard,g::c::[])  ->
         let q = newstate()
         let (lst,ie,p') = (Pg q qt p id c)
-        ((qs,(pUpdate p' g),q)::lst,ie,p')
+        ((qs,(pUpdate p' g),q,id)::lst,ie,p')
     | Node(Gc,gc1::gc2::[]) ->
         let (lst1,ie1,p1) = (Pg qs qt p id gc1)
         let (lst2,ie2,p2) = (Pg qs qt p id gc2)
@@ -78,7 +78,7 @@ let rec Pg qs qt p id tree =
 
 let pgGen tree =
     let (graph,ex,p) = Pg 0 1 Map.empty 0 tree
-    (graph,(0,1)::ex)
+    (graph,(0,1,0)::ex)
     ;;
 
 // ##### AUX FUNCTIONS FOR GRAPHS #####
@@ -88,15 +88,15 @@ let rec varsInA = function
     | Node(_,lst) -> List.fold (fun rst a -> rst + (varsInA a)) Set.empty lst
     ;;
 
-let varsInGraph graph = List.fold (fun rst (qs,a,qt) -> rst + (varsInA a)) Set.empty graph ;;
+let varsInGraph graph = List.fold (fun rst (qs,a,qt,id) -> rst + (varsInA a)) Set.empty graph ;;
 
-let edgesFrom q graph = Set.filter (fun (qs,a,qt) -> qs=q ) graph ;;
-let edgesTo q graph = Set.filter (fun (qs,a,qt) -> qt=q) graph ;;
+let edgesFrom q graph = Set.filter (fun (qs,a,qt,id) -> qs=q ) graph ;;
+let edgesTo q graph = Set.filter (fun (qs,a,qt,id) -> qt=q) graph ;;
 
-let endNodes graph = Set.fold (fun rst (qs,a,qt) -> Set.add qt rst) Set.empty graph ;;
-let startNodes graph = Set.fold (fun rst (qs,a,qt) -> Set.add qs rst) Set.empty graph
+let endNodes graph = Set.fold (fun rst (qs,a,qt,id) -> Set.add qt rst) Set.empty graph ;;
+let startNodes graph = Set.fold (fun rst (qs,a,qt,id) -> Set.add qs rst) Set.empty graph
 
-let rec allNodes graph = List.fold (fun rst (qs,a,qt) -> Set.add qt (Set.add qs rst) ) Set.empty graph ;;
+let rec allNodes graph = List.fold (fun rst (qs,a,qt,id) -> Set.add qt (Set.add qs rst) ) Set.empty graph ;;
 
 let isLocal var = String.exists (fun c -> c='}') var
 
@@ -140,13 +140,13 @@ let rec components G Q =
         let newQ = Q-comp
         comp::(components G newQ)
 
-let inverse G = List.foldBack (fun (qs,a,qt) rst -> (qt,a,qs)::rst ) G []
+let inverse G = List.foldBack (fun (qs,a,qt,id) rst -> (qt,a,qs,id)::rst ) G []
 
 // ##### PRODUCT GRAPH GENERATOR #####
 
-let addToNodes nodes (qs,a,qt) = Set.fold (fun rst q -> Set.add (qs+q,a,qt+q) rst) Set.empty nodes
+let addToNodes nodes (qs,a,qt,id) = Set.fold (fun rst q -> Set.add (qs+q,a,qt+q,id) rst) Set.empty nodes
 
-let merge nodes graph = List.fold (fun rst (qs,a,qt) -> rst + (addToNodes nodes (qs,a,qt)) ) Set.empty graph
+let merge nodes graph = List.fold (fun rst t -> rst + (addToNodes nodes t) ) Set.empty graph
 
 let product x y =
     let xNodes = allNodes x
@@ -162,10 +162,10 @@ let rec productFromList = function
     ;;
 
 let productGraph graph exVal =
-    let setExVal = List.fold (fun rst (qs:int,qt) -> ((Set.ofList [qs]),(Set.ofList [qt]))::rst) [] exVal
-    let setisfyNodesGraph = List.fold (fun rst (qs,a,qt) -> ((Set.ofList [qs]),a,(Set.ofList [qt]))::rst) [] graph
+    let setExVal = List.fold (fun rst (qs:int,qt,_) -> ((Set.ofList [qs]),(Set.ofList [qt]))::rst) [] exVal
+    let setisfyNodesGraph = List.fold (fun rst (qs,a,qt,id) -> ((Set.ofList [qs]),a,(Set.ofList [qt]),id)::rst) [] graph
     let graphList = List.fold (fun rst (qs,qt) -> (Set.toList (graphFrom qs (Set.ofList setisfyNodesGraph)))::rst) [] setExVal
     let pg = productFromList graphList
-    let initVal = List.fold (fun rst ((qs:int),qt) -> Set.add qs rst ) Set.empty exVal
-    let endVal = List.fold (fun rst (qs,(qt:int)) -> Set.add qt rst) Set.empty exVal
+    let initVal = List.fold (fun rst ((qs:int),qt,_) -> Set.add qs rst ) Set.empty exVal
+    let endVal = List.fold (fun rst (qs,(qt:int),_) -> Set.add qt rst) Set.empty exVal
     (pg,[(initVal,endVal)])

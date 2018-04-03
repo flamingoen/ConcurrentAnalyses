@@ -24,7 +24,7 @@ let labelToString set = Set.fold (fun rst (q:int) -> rst+"q"+(string q)) "" set
 
 let rec graphToGraphviz = function
     | []               -> ""
-    | (qs,tree,qt)::xs ->
+    | (qs,tree,qt,id)::xs ->
         "" + (labelToString qs) + " -> " + (labelToString qt) + " [label = \""+(nodeToString tree)+"\"];\n"  + (graphToGraphviz xs)
 
 let generateInitVals inits =
@@ -49,13 +49,13 @@ let printGraphviz path graph initVals endVals =
 
 let makeProductGraph graph exVal =
     let path = "graphviz/productGraph.gv"
-    let initVal = (Set.add (List.fold (fun rst ((qs:int),qt) -> rst+"q"+(string qs) ) "" exVal) Set.empty )
-    let endVal = (Set.add (List.fold (fun rst (qs,(qt:int)) -> rst+"q"+(string qt) ) "" exVal) Set.empty )
+    let initVal = (Set.add (List.fold (fun rst ((qs:int),qt,_) -> rst+"q"+(string qs) ) "" exVal) Set.empty )
+    let endVal = (Set.add (List.fold (fun rst (qs,(qt:int),_) -> rst+"q"+(string qt) ) "" exVal) Set.empty )
     printGraphviz path graph initVal endVal
 
 let makeGraph graph exVal =
     let path = "graphviz/graph.gv"
-    let initVals = List.fold (fun rst ((qs:int),qt) -> Set.add ("q"+(string qs)) rst ) Set.empty exVal
-    let endVals = List.fold (fun rst (qs,(qt:int)) -> Set.add ("q"+(string qt)) rst ) Set.empty exVal
-    let setisfyedGraph = List.fold (fun rst (qs:int,a,qt:int) -> ((Set.ofList [qs]),a,(Set.ofList [qt]))::rst) [] graph
+    let initVals = List.fold (fun rst ((qs:int),qt,_) -> Set.add ("q"+(string qs)) rst ) Set.empty exVal
+    let endVals = List.fold (fun rst (qs,(qt:int),_) -> Set.add ("q"+(string qt)) rst ) Set.empty exVal
+    let setisfyedGraph = List.fold (fun rst (qs:int,a,qt:int,id) -> ((Set.ofList [qs]),a,(Set.ofList [qt]),id)::rst) [] graph
     printGraphviz path setisfyedGraph initVals endVals

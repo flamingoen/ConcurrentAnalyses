@@ -1,9 +1,7 @@
 module bitVectorAnalyses
 open lattice
 
-let BVF kill gen state (qs,a,qt) L =
-    let t = (qs,a,qt)
-    (Set.difference state (kill state t L)) + (gen state t L)
+let BVF kill gen state t L = (Set.difference state (kill state t L)) + (gen state t L)
 
 // #### REACHING DEFINITIONS ####
 
@@ -25,13 +23,16 @@ let order_RD s1 s2 = Set.(+) (s1,s2) ;;
 let exVal_RD G non =
     Set.fold (fun rst var -> Set.add (var,non,non,Initial) rst) Set.empty (removeLocalVars (varsInGraph G))
 
-let con_RD G cmps Aa q L =
-    let distachedNodes = QQ q G cmps
-    let cc = Set.fold (fun rst q -> rst + (Set.filter (fun (v,q1,q2,c) -> c=Global ) (Map.find q Aa)) ) Set.empty distachedNodes
-    Set.fold (fun rst (v,q1,q2,c) -> Set.add (v,q1,q2,Concurrent) rst ) Set.empty cc
-    ;;
+let con_RDg id c = Map.fold (fun rst id' s -> if id'=id then rst else rst+s ) Set.empty c
 
-let kill_RD non state (qs,a,qt) L =
+let con_RDa id s1 s2 c =
+    let filtered = Set.filter (fun (var,q1,q2,o) -> o=Global ) (Set.union s1 s2)
+    let s' =  Set.fold (fun rst (var,q1,q2,o) -> Set.add (var,q1,q2,Concurrent) rst ) Set.empty filtered
+    match Map.tryFind id c with
+    | Some(s) -> Map.add id (s'+s) c
+    | None    -> Map.add id s' c
+
+let kill_RD non state (qs,a,qt,id) L =
     match a with
     | Node( Assign, Node(X(x),_)::xs )      -> Set.filter (fun ( var,q1,q2,o) -> var=x ) state
     | Node( Decl,   Node(X(x),_)::xs )      -> Set.filter (fun ( var,q1,q2,o) -> var=x ) state
@@ -40,7 +41,7 @@ let kill_RD non state (qs,a,qt) L =
     | _ -> Set.empty
     ;;
 
-let gen_RD non state (qs,a,qt) L =
+let gen_RD non state (qs,a,qt,id) L =
     match a with
     | Node( Assign, Node(X(x),_)::xs )      ->
         if isLocal x then Set.ofList [(x,qs,qt,Local )]
@@ -80,14 +81,23 @@ let con_LV G cmps Aa q L =
     Set.fold (fun rst (v,o) -> Set.add (v,Concurrent) rst ) Set.empty cc
     ;;
 
-let kill_LV state (qs,a,qt) L =
+let con_LVg id c = con_RDg id c
+
+let con_LVa id s1 s2 c =
+    let filtered = Set.filter (fun (v,o) -> o=Global ) (Set.union s1 s2)
+    let s' =  Set.fold (fun rst (v,o) -> Set.add (v,Concurrent) rst ) Set.empty filtered
+    match Map.tryFind id c with
+    | Some(s) -> Map.add id (s'+s) c
+    | None    -> Map.add id s' c
+
+let kill_LV state (qs,a,qt,id) L =
     match a with
     | Node( Assign, Node(X(x),_)::xs )   -> Set.filter (fun (var,o) -> var=x ) state
     | Node( Decl,   Node(X(x),_)::xs )   -> Set.filter (fun (var,o) -> var=x ) state
     | Node( Decl,   Node(A(arr),_)::xs ) -> Set.filter (fun (var,o) -> var=arr ) state
     | _                                  -> Set.empty
 
-let gen_LV state (qs,a,qt) L =
+let gen_LV state (qs,a,qt,id) L =
     match a with
     | Node( Assign, x::arthm::xs )  -> FV arthm
     | Node( Send,   ch::arthm::xs)  -> FV arthm
