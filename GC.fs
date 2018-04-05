@@ -34,3 +34,10 @@ let rec subsets s =
     if Set.isEmpty s then Set.empty else
     let subset = Set.fold (fun rst e -> rst + (subsets (Set.remove e s)) ) Set.empty s
     Set.add s subset
+
+let rec varsInA = function
+    | Node(X(x),_) -> Set.ofList [x]
+    | Node(_,lst) -> List.fold (fun rst a -> rst + (varsInA a)) Set.empty lst
+    ;;
+
+let Ø = Set.empty

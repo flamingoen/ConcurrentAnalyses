@@ -1,7 +1,7 @@
 module bitVectorAnalyses
 open lattice
 
-let BVF kill gen state t L = (Set.difference state (kill state t L)) + (gen state t L)
+let BVF kill gen state t = (Set.difference state (kill state t)) + (gen state t)
 
 // #### REACHING DEFINITIONS ####
 
@@ -23,7 +23,7 @@ let order_RD s1 s2 = Set.(+) (s1,s2) ;;
 let exVal_RD G non =
     Set.fold (fun rst var -> Set.add (var,non,non,Initial) rst) Set.empty (removeLocalVars (varsInGraph G))
 
-let con_RDg id c = Map.fold (fun rst id' s -> if id'=id then rst else rst+s ) Set.empty c
+let con_RDg id s1 s2 c = Map.fold (fun rst id' s -> if id'=id then rst else rst+s ) Ø c
 
 let con_RDa id s1 s2 c =
     let filtered = Set.filter (fun (var,q1,q2,o) -> o=Global ) (Set.union s1 s2)
@@ -32,7 +32,7 @@ let con_RDa id s1 s2 c =
     | Some(s) -> Map.add id (s'+s) c
     | None    -> Map.add id s' c
 
-let kill_RD non state (qs,a,qt,id) L =
+let kill_RD non state (qs,a,qt,id) =
     match a with
     | Node( Assign, Node(X(x),_)::xs )      -> Set.filter (fun ( var,q1,q2,o) -> var=x ) state
     | Node( Decl,   Node(X(x),_)::xs )      -> Set.filter (fun ( var,q1,q2,o) -> var=x ) state
@@ -41,7 +41,7 @@ let kill_RD non state (qs,a,qt,id) L =
     | _ -> Set.empty
     ;;
 
-let gen_RD non state (qs,a,qt,id) L =
+let gen_RD non state (qs,a,qt,id) =
     match a with
     | Node( Assign, Node(X(x),_)::xs )      ->
         if isLocal x then Set.ofList [(x,qs,qt,Local )]
@@ -56,7 +56,7 @@ let gen_RD non state (qs,a,qt,id) L =
     | _ -> Set.empty
     ;;
 
-let f_RD non L state t = BVF (kill_RD non) (gen_RD non) state t L
+let f_RD non state t = BVF (kill_RD non) (gen_RD non) state t
 
 
 
@@ -75,13 +75,7 @@ let rec FV = function
     | Node(_,lst)                  -> List.fold (fun rst x -> rst + (FV x)) Set.empty lst
     ;;
 
-let con_LV G cmps Aa q L =
-    let distachedNodes = QQ q G cmps
-    let cc = Set.fold (fun rst q -> rst + (Set.filter (fun (v,o) -> o=Global ) (Map.find q Aa)) ) Set.empty distachedNodes
-    Set.fold (fun rst (v,o) -> Set.add (v,Concurrent) rst ) Set.empty cc
-    ;;
-
-let con_LVg id c = con_RDg id c
+let con_LVg id s1 s2 c = con_RDg id s1 s2 c
 
 let con_LVa id s1 s2 c =
     let filtered = Set.filter (fun (v,o) -> o=Global ) (Set.union s1 s2)
@@ -90,18 +84,18 @@ let con_LVa id s1 s2 c =
     | Some(s) -> Map.add id (s'+s) c
     | None    -> Map.add id s' c
 
-let kill_LV state (qs,a,qt,id) L =
+let kill_LV state (qs,a,qt,id) =
     match a with
     | Node( Assign, Node(X(x),_)::xs )   -> Set.filter (fun (var,o) -> var=x ) state
     | Node( Decl,   Node(X(x),_)::xs )   -> Set.filter (fun (var,o) -> var=x ) state
     | Node( Decl,   Node(A(arr),_)::xs ) -> Set.filter (fun (var,o) -> var=arr ) state
     | _                                  -> Set.empty
 
-let gen_LV state (qs,a,qt,id) L =
+let gen_LV state (qs,a,qt,id) =
     match a with
     | Node( Assign, x::arthm::xs )  -> FV arthm
     | Node( Send,   ch::arthm::xs)  -> FV arthm
     | _ -> Set.empty
     ;;
 
-let f_LV L state t = BVF (kill_LV) (gen_LV) state t L
+let f_LV state t = BVF (kill_LV) (gen_LV) state t

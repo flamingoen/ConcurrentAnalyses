@@ -2,7 +2,7 @@ module signAnalysis
 open tablesSign
 open lattice
 
-let btm_s = Set.empty ;;
+let btm_s = Ø ;;
 
 let top_s G =
     let vars = varsInGraph G
@@ -17,7 +17,7 @@ let exVal_s G =
     let vars = removeLocalVars (varsInGraph G)
     Set.fold (fun rst var -> (Set.ofList [])+rst) Set.empty vars
 
-let con_Sg id c = Map.fold (fun rst id' s -> if id'=id then rst else rst+s ) Set.empty c
+let con_Sg id s1 s2 c = Map.fold (fun rst id' s -> if id'=id then rst else rst+s ) Ø c
 
 let con_Sa id s1 s2 c =
     let filtered = Set.filter (fun (v,s,o) -> o=Global ) (Set.union s1 s2)
@@ -118,8 +118,13 @@ let top_C = Set.empty
 let order_C s1 s2 = Set.intersect s1 s2
 let exVal_C = Set.empty
 
-let con_Cg id c = Set.empty
-let con_Ca id s1 s2 c = Set.empty
+let con_Cg id s1 s2 c = Map.find id c
+let con_Ca id s1 s2 c =
+    let filtered = Set.filter (fun (v,s,o) -> o=Global ) (Set.union s1 s2)
+    let s' =  Set.fold (fun rst (v,s,o) -> Set.add (v,s,Concurrent) rst ) Set.empty filtered
+    match Map.tryFind id c with
+        | Some(s) -> Map.add id (s'+s) c
+        | None    -> Map.add id s' c
 
 let f_C Ls Lc Ss Sc (qs,a,qt,id) =
     match a with
@@ -134,20 +139,23 @@ let f_C Ls Lc Ss Sc (qs,a,qt,id) =
 // ##### Combination  #####
 // ########################
 
-let exVal_CS G            = ((exVal_s G),exVal_C)
-let btm_CS G              = (btm_s,(btm_C G))
-let top_CS G              = ((top_s G),top_C)
-let order_CS (s1,c1) (s2,c2) = ((order_s s1 s2),(order_C c1 c2))
+let exVal_CS G               = ((exVal_s G),exVal_C)
+let btm_CS G                 = (btm_s,(btm_C G))
+let top_CS G                 = ((top_s G),top_C)
+let order_CS (s1,c1) (s2,c2) = ((Set.union s1 s2),(Set.intersect c1 c2))
 
-//let con_CS G cmps Aa q L  =
-//    let (_,c) = Map.find q Aa
-//    let s = Map.fold (fun rst q (a,b) -> Map.add q a rst) Map.empty Aa
-//    ((con_S G cmps s q L),c)
+let con_CSg Lc id s1 s2 c =
+    let cs = Map.fold (fun r id' s -> if id'=id then r else r+s ) Set.empty c
+    let cs' = Set.fold (fun rst (v,s,c) -> Set.add (v,s,Concurrent) rst) Set.empty cs
+    (cs',(btm Lc))
+
+let con_CSa id (s1,c1) (s2,c2) c =
+    let s' =  Set.fold (fun rst (v,s,o) -> if o = Global then Set.add (v,s,c1) rst else rst ) Set.empty (Set.union s1 s2)
+    match Map.tryFind id c with
+        | Some(s) -> Map.add id (s'+s) c
+        | None    -> Map.add id s' c
 
 let f_CS Ls Lc (Ss,Sc) t =
     let Sc' = f_C Ls Lc Ss Sc t
     let Ss' = f_s Ss t
     (Ss',Sc')
-
-
-// doorstop
