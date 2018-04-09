@@ -14,11 +14,9 @@ let top_RD G =
     let nCombo = Set.fold (fun rst q -> rst + (combine q nodes) ) Set.empty nodes
     let vCombo = Set.fold (fun rst var -> rst + (Set.fold (fun rst (q1,q2) -> Set.add (var,q1,q2,Global) rst) Set.empty nCombo) ) Set.empty vars
     vCombo
-    ;;
 
-let btm_RD = Set.empty ;;
-
-let order_RD s1 s2 = Set.(+) (s1,s2) ;;
+let order_RD s1 s2 = Set.(+) (s1,s2)
+let L_RD G = (Ø,(top_RD G),order_RD)
 
 let exVal_RD G non =
     Set.fold (fun rst var -> Set.add (var,non,non,Initial) rst) Set.empty (removeLocalVars (varsInGraph G))
@@ -62,9 +60,8 @@ let f_RD non state t = BVF (kill_RD non) (gen_RD non) state t
 
 // #### Live variables ####
 
-let btm_LV = Set.empty
-let top_LV G = Set.empty
 let order_LV s1 s2 = Set.(+) (s1,s2) ;;
+let L_LV = (Ø,Ø,order_LV)
 let exVal_LV = Set.empty
 
 let rec FV = function
