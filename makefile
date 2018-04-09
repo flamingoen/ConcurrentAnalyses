@@ -1,6 +1,8 @@
 path = results/result.out
 
-all: run
+default: run
+
+all: build run
 
 lexer:
 	mono "FsLexYacc.7.0.6/build/fslex.exe" GuardedCommandLexer.fsl --unicode
@@ -15,3 +17,4 @@ run:
 
 output:
 	fsharpi main.fsx > $(path)
+	cat $(path)
