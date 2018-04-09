@@ -53,8 +53,9 @@ par
         true -> x:=-1; skip
     fi
 []
+    x:=0;
     if
-        x>0 -> skip; y:=1
+        x>0 -> y:=1
     []
         true -> y:=-1
     fi;

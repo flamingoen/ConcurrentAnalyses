@@ -12,10 +12,10 @@ open signAnalysis
 let mutable transitions = 0
 let mutable maxWSize = 0
 
-let printStep (qs,a,qt,id) Aa Af W L =
-    //let Ws = List.foldBack (fun (qs,a,qt) rst -> (qs,(nodeToString a),qt)::rst ) W List.empty
-    //printfn("%A->%A:\t  %-10s W: %A") qs qt (nodeToString a) (List.length W)
-    //printMap Aa
+let printStep (qs,a,qt,id) Aa Af W L c=
+    //printfn("id:%A  %A->%A:\t  %-10s W: %A") id qs qt (nodeToString a) (List.length W)
+    //printMap c
+    //printfn ""
     if transitions%100=0 then printf("\n")
     printf("#")
 
@@ -38,6 +38,7 @@ let initA nodes L E i =
 
 let appendFront t W = t::W
 let appendBack  t W = W@[t]
+
 let rec newW G (qs,a,qt,id) w append = function
     | [] -> w@[(qs,a,qt,id)]
     | (qs',a',qt',id')::xs when qs'=qt ->
@@ -53,12 +54,12 @@ let rec MFP2 L E Aa f c con_g con_a F W =
         let newA = f sqs (qs,a,qt,id)
         let s' = lob (newA) (con_g id sqs newA c) L
         let analysisChanged = (not (subeq s' sqt L))
-        printStep (qs,a,qt,id) Aa s' xs L
+        printStep (qs,a,qt,id) Aa s' xs L c
         updateStats xs
         if analysisChanged then
             let Aa' = (Map.add qt (lob s' sqt L) Aa)
             let W' = newW F (qs,a,qt,id) xs appendBack F
-            let c' = con_a id sqs s' c
+            let c' = con_a id sqs newA c
             MFP2 L E Aa' f c' con_g con_a F W'
         else MFP2 L E Aa f c con_g con_a F xs
 
@@ -125,22 +126,29 @@ let detectionOfSignsAnalysis G ex =
         ) colRes
     printfn("\nTransitions taken: %A    Max worklist size: %A    Nodes: %i    Transitions: %i") transitions maxWSize (Set.count (allNodes G)) (List.length G)
 
+let rec condenseStateC state = function
+    | []        -> Set.empty
+    | var::xs   ->
+        let varSet,extract = Set.partition (fun (x,signs,o,cstr) -> x=var ) state
+        let conVarSet = Set.fold (fun rst (x,sign,o,cstr) -> Set.add (x,sign) rst ) Set.empty varSet
+        Set.add (var,(Set.foldBack (fun (x,s) rst -> if rst="" then s+rst else s+","+rst ) conVarSet  "")) (condenseStateC extract xs)
+
 let constraintAnalysis graph ex =
     printfn"\nConstraint analysis"
     let L = ((btm_CS graph),(top_CS graph),order_CS)
     let Lc = ((btm_C graph),top_C,order_C)
-    let Ls = (btm_s, (top_s graph), order_s)
+    let Ls = (btm_s, (top_Sc graph), order_s)
     let E = List.fold (fun rst (qs,qt,id) -> (qs,id)::rst ) [] ex
     let exVal = exVal_CS graph
     let f = f_CS Ls Lc
     let res = MFP L graph E exVal f (con_CSg Lc) con_CSa
     printfn "\n"
     let colRes = Map.fold (fun rst q (s,c) ->
-        Map.add q ( condenseState s (Set.toList (varsIn s)) , c) rst ) Map.empty res
+        Map.add q ( condenseStateC s (Set.toList (varsInC s)) , c) rst ) Map.empty res
     Map.iter (fun q (state,c) ->
-        printf("q%-15A") q
+        printf("q%-10A\t") q
         Set.iter (fun (x,s) -> printf("%5s-> %-5s " ) x s) state
-        printf(" [")
+        printf("\t[")
         Set.iter (fun e -> printf("%A") e ) c
         printfn("] ")
         ) colRes

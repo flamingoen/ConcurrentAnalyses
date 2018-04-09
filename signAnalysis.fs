@@ -15,7 +15,7 @@ let order_s s1 s2 = Set.(+) (s1,s2)
 
 let exVal_s G =
     let vars = removeLocalVars (varsInGraph G)
-    Set.fold (fun rst var -> (Set.ofList [])+rst) Set.empty vars
+    Set.fold (fun rst var -> (Set.ofList [(var,"0",Initial);(var,"+",Initial);(var,"-",Initial)])+rst) Set.empty vars
 
 let con_Sg id s1 s2 c = Map.fold (fun rst id' s -> if id'=id then rst else rst+s ) Ø c
 
@@ -108,9 +108,55 @@ let f_s state (qs,a,qt,id) =
 // ##### Constraint analysis #####
 // ###############################
 
-let removeOrigin set = Set.fold (fun rst (v,s,o) -> Set.add (v,s) rst ) Set.empty set
+let removeOrigin set = Set.fold (fun rst (v,s,o,c) -> Set.add (v,s) rst ) Set.empty set
 
-let removeConcurrent set = removeOrigin (Set.filter (fun (v,s,o) -> (not (o=Concurrent)) ) set)
+let removeConcurrent set = removeOrigin (Set.filter (fun (v,s,o,c) -> (not (o=Concurrent)) ) set)
+
+let signOfC x state = Set.fold (fun rst (y,sign,o,c) -> if y=x then Set.add sign rst else rst ) Set.empty state
+
+let rec Ac state = function
+    | Node(X(x),_)          -> signOfC x state
+    | Node(A(arr),_)        -> signOfC arr state
+    | Node(C(ch),_)         -> signOfC ch state
+    | Node(N(0),_)          -> Set.ofList ["0"]
+    | Node(N(n),_) when n>0 -> Set.ofList ["+"]
+    | Node(N(n),_) when n<0 -> Set.ofList ["-"]
+    | Node(Pl,a1::a2::_)    -> magic (Ac state a1) (Ac state a2) plus
+    | Node(Mi,a1::a2::_)    -> magic (Ac state a1) (Ac state a2) minus
+    | Node(Mlt,a1::a2::_)   -> magic (Ac state a1) (Ac state a2) multi
+    | Node(Div,a1::a2::_)   -> magic (Ac state a1) (Ac state a2) divide
+    | Node(a,_)             -> failwith("In As: unknown match for action "+(string a))
+
+let rec Bc state = function
+    | Node(True,_)          -> Set.ofList [True]
+    | Node(False,_)         -> Set.ofList [False]
+    | Node(Gt,a1::a2::_)    -> magic (Ac state a1) (Ac state a2) greater
+    | Node(Lt,a1::a2::_)    -> magic (Ac state a1) (Ac state a2) less
+    | Node(Eq,a1::a2::_)    -> magic (Ac state a1) (Ac state a2) equal
+    | Node(Geq,a1::a2::_)   -> magic (Ac state a1) (Ac state a2) greaterEq
+    | Node(Leq,a1::a2::_)   -> magic (Ac state a1) (Ac state a2) lessEq
+    | Node(Neq,a1::a2::_)   -> magic (Ac state a1) (Ac state a2) notEqual
+    | Node(Not,b1::_)       -> Set.fold (fun rst b -> _not b ) Set.empty (Bc state b1)
+    | Node(Lor,b1::b2::_)   -> magic (Bc state b1) (Bc state b2) _or
+    | Node(Land,b1::b2::_)  -> magic (Bc state b1) (Bc state b2) _and
+    | Node(a,_)             -> failwith("In Bs: unknown match for action "+(string a))
+
+let rec basicC state = function
+    | []        -> [Set.empty]
+    | var::xs   ->
+        let varSet,extract = Set.partition (fun (x,signs,o,c) -> x=var ) state
+        Set.fold (fun rst elem ->
+            List.fold (fun rst' subset -> (Set.add elem subset)::rst' ) [] (basicC extract xs)@rst
+        ) [] varSet
+
+let varsInC state = Set.fold (fun rst (x,sign,o,c) -> Set.add x rst ) Set.empty state
+
+let boolFilterC b state =
+    let basicList = basicC state (Set.toList (varsInC state))
+    List.fold (fun rst state' ->
+        if (Set.contains True (Bc state' b)) then state' + rst
+        else rst
+    ) Set.empty basicList
 
 let btm_C G =
     Set.fold (fun rst var -> (Set.ofList [(var,"0");(var,"+");(var,"-");(var,"T")]) + rst ) Set.empty (varsInGraph G)
@@ -130,7 +176,7 @@ let f_C Ls Lc Ss Sc (qs,a,qt,id) =
     match a with
     | Node( b, _ ) when isBoolOp b ->
         let vars = varsInA a
-        let filtered = Set.filter (fun (x,s) -> (Set.contains x vars)) (removeOrigin (boolFilter a (top Ls) ) )
+        let filtered = Set.filter (fun (x,s) -> (Set.contains x vars)) (removeOrigin (boolFilterC a (top Ls) ) )
         (filtered - (removeConcurrent Ss)) + Sc
     | _ -> Sc
 
@@ -139,23 +185,62 @@ let f_C Ls Lc Ss Sc (qs,a,qt,id) =
 // ##### Combination  #####
 // ########################
 
-let exVal_CS G               = ((exVal_s G),exVal_C)
-let btm_CS G                 = (btm_s,(btm_C G))
-let top_CS G                 = ((top_s G),top_C)
+let exVal_CS G =
+    let vars = removeLocalVars (varsInGraph G)
+    let ex_s = Set.fold (fun rst var ->
+        (Set.ofList [(var,"0",Initial,Ø);(var,"+",Initial,Ø);(var,"-",Initial,Ø)])+rst) Set.empty vars
+    (ex_s,exVal_C)
+
+let btm_CS G = (btm_s,(btm_C G))
+
+let top_Sc G =
+    let vars = varsInGraph G
+    Set.fold (fun rst var ->
+        if isLocal var then (Set.ofList [(var,"0",Local,Ø);(var,"+",Local,Ø);(var,"-",Local,Ø)])+rst
+        else (Set.ofList [(var,"0",Global,Ø);(var,"+",Global,Ø);(var,"-",Global,Ø)])+rst
+    ) Set.empty vars
+
+let top_CS G = (top_Sc,top_C)
+
 let order_CS (s1,c1) (s2,c2) = ((Set.union s1 s2),(Set.intersect c1 c2))
 
-let con_CSg Lc id s1 s2 c =
+let con_CSg Lc id (s1,c1) (s2,c2) c =
     let cs = Map.fold (fun r id' s -> if id'=id then r else r+s ) Set.empty c
-    let cs' = Set.fold (fun rst (v,s,c) -> Set.add (v,s,Concurrent) rst) Set.empty cs
+    let S = removeOrigin (Set.filter (fun (v,s,o,c) -> o=Global ) s2) 
+    let cs' = Set.fold (fun rst (v,s,cstr) ->
+        if Set.intersect S cstr = cstr then Set.add (v,s,Concurrent,cstr) rst else rst ) Set.empty cs
     (cs',(btm Lc))
 
 let con_CSa id (s1,c1) (s2,c2) c =
-    let s' =  Set.fold (fun rst (v,s,o) -> if o = Global then Set.add (v,s,c1) rst else rst ) Set.empty (Set.union s1 s2)
+    let s' =  Set.fold (fun rst (v,s,o,c') -> if o = Global then Set.add (v,s,c') rst else rst ) Set.empty (Set.union s1 s2)
     match Map.tryFind id c with
         | Some(s) -> Map.add id (s'+s) c
         | None    -> Map.add id s' c
 
-let f_CS Ls Lc (Ss,Sc) t =
-    let Sc' = f_C Ls Lc Ss Sc t
-    let Ss' = f_s Ss t
-    (Ss',Sc')
+let updateC x signs c state =
+    let rSet = Set.filter (fun (y,s,o,c') -> not (x=y) ) state
+    Set.fold (fun rst sign ->
+        if isLocal x then Set.add (x,sign,Local,c) rst
+        else Set.add (x,sign,Global,c) rst
+    ) rSet signs
+
+let f_CS Ls Lc (Ss,Sc) (qs,a,qt,id) =
+    let Sc' = f_C Ls Lc Ss Sc (qs,a,qt,id)
+    match a with
+    | Node( Assign, Node(X(x),_)::fu::[] )  ->
+        ((updateC x (Ac Ss fu) Sc Ss),Sc')
+    | Node( Assign, Node(A(ar),l)::fu::[] ) ->
+        ((updateC ar (Ac Ss fu+(Ac Ss (Node(A(ar),l)))) Sc Ss),Sc')
+    | Node( Decl,   Node(X(x),_)::xs )      ->
+        ((updateC x (Set.ofList ["0"]) Sc Ss),Sc')
+    | Node( Decl,   Node(A(ar),l)::xs)      ->
+        ((updateC ar ((Ac Ss (Node(A(ar),l)))+(Set.ofList ["0"])) Sc Ss),Sc')
+    | Node( Send,   Node(C(ch),_)::x::xs)   ->
+        ((updateC ch (Ac Ss x) Sc Ss),Sc')
+    | Node( Recv,   ch::Node(X(x),_)::xs)   ->
+        ((updateC x (Ac Ss ch) Sc Ss),Sc')
+    | Node( Recv,   ch::Node(A(ar),l)::xs)  ->
+        ((updateC ar ( (Ac Ss ch) + (Ac Ss (Node(A(ar),l))) ) Sc Ss),Sc')
+    | Node( b, _ ) when isBoolOp b          ->
+        ((boolFilterC a Ss),Sc')
+    | _ -> (Ss,Sc')
