@@ -23,34 +23,45 @@ open graphViz
 #load "bitVectorAnalyses.fs"
 #load "tablesSign.fs"
 #load "signAnalysis.fs"
+#load "worklistAlgorithm.fs"
 #load "analysis.fs"
 open analysis
 
-let program = bakeryAlgorithm
+let program = testProgram2
 
 let syntaxTree =
     try parse program
     with e -> failwith ("could not parse program:\n"+program)
 
 let (graph,ex) = ( pgGen syntaxTree )
-let (graphProduct,exValProduct) = productGraph graph ex
+let (G,e) = (normalizeGraph graph ex)
+let (graphProduct,exValProduct) = productGraph G e
+
 
 // GRAPHVIZ
-makeGraph graph ex
-makeProductGraph graphProduct ex
+makeGraph G e
+makeProductGraph graphProduct e
 
 // REACHING DEFINITION
 //#time
-//reachingDefinition graph ex -1
+//reachingDefinition G e -1
 //#time
 //#time
-//detectionOfSignsAnalysis graphProduct exValProduct (Set.ofList [-1])
+//reachingDefinition graphProduct exValProduct (Set.ofList [-1])
 //#time
 
+
+// LIVE VARIABLES
+//#time
+//liveVariables G e
+//#time
+//#time
+//liveVariables graphProduct exValProduct
+//#time
 
 // DETECTION OF SIGNS
 #time
-detectionOfSignsAnalysis graph ex
+detectionOfSignsAnalysis G e
 #time
 //#time
 //detectionOfSignsAnalysis graphProduct exValProduct
