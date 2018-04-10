@@ -18,3 +18,12 @@ run:
 output:
 	fsharpi main.fsx > $(path)
 	cat $(path)
+
+cleanOut:
+	rm results/*
+	rm graphviz/*
+
+cleanParserLexer:
+	rm GuardedCommandLexer.fs GuardedCommandParser.fs GuardedCommandParser.fsi
+
+clean: cleanOut cleanParserLexer
