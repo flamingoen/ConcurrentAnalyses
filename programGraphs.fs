@@ -8,9 +8,10 @@ let newstate() =
     state <- state+1
     state
 
-let doneCg = function
-    | Node(guard,g::c::[]) -> Node(Not,[g])
-    | _                    -> failwith "Invalid node in done"
+let rec doneCg = function
+    | Node(Guard,g::c::[])  -> Node(Not,[g])
+    | Node(Gc,c1::c2::[])     -> Node(Land,doneCg(c1)::doneCg(c2)::[])
+    | Node(action,_)        -> failwith ("Invalid node "+(string action)+" in done")
 
 let pGet p var =
     match Map.tryFind var p with
