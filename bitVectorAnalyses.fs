@@ -1,5 +1,8 @@
 module bitVectorAnalyses
+
 open lattice
+open programGraphs
+open GC
 
 let BVF kill gen state t = (Set.difference state (kill state t)) + (gen state t)
 

@@ -1,52 +1,13 @@
 module programs
 
-let testProgram = "
-x := 5;
-y := 10;
-z := x + y
-"
-
-let arrayTest = "
-par
-    var A[10];
-    var x;
-    loop
-        x<10 -> A[x] := x+1
-    pool
-rap
-
-"
-
-let myOwnVarsProgram = "
-par
-    var x;
-    x:=4;
-    ch!x
-[]
-    var x;
-    ch?x
-rap
-"
-
-let doIfLoopProgram = "
-par
-    var x;
-    do true -> x:=1 od
-[]
-    loop true -> x:=1 pool
-[]
-    if true -> x:=1 fi
-rap
-"
-
 let simpleProgram = "
 par x:=1 [] x:=-1 rap
 "
 
 let testProgram2 = "
 par
-    y:=0;
     x:=0;
+    y:=0;
     if
         true -> x:=1; skip
     []
@@ -61,7 +22,6 @@ par
     fi;
     skip
 rap
-
 "
 
 let bakeryAlgorithm = "
@@ -96,7 +56,6 @@ par
 []
     do true -> skip od
 rap
-
 "
 
 let writeNoReadConditional = "
@@ -113,26 +72,41 @@ rap
 
 "
 
-let setByAnotherProgram = "
+let multiplex_loop = "
 par
-  y:=0;
-  x:=0;
-  if
-    true -> x:=1; skip
-  []
-    true -> x:=-1; skip
-  fi
+    var x; var y;
+    do true ->
+        cx?x;
+        cy?y;
+        c!y
+    od
 []
-  if
-    x>0 -> y:=1
-  []
-    true -> skip
-  fi;
-  y:=-1
+    do true -> cy!1; cx!1
+    [] true -> cy!-1; cx!-1
+    od
+[]
+    var x;
+    do true -> c?x od
 rap
-
-
 "
+
+let multiplex = "
+par
+    var y;
+    c1?y;
+    c2!y
+[]
+    var x;
+    if true -> x:=1
+    [] true -> x:=-1
+    fi;
+    c1!x
+[]
+    var z;
+    c2?z
+rap
+"
+
 
 let moduloProgram = "
 do m>=n -> m:=m-n od;
@@ -151,6 +125,7 @@ res := n
 "
 
 let fibonachi = "
+    n := 10;
     i := 0;
     j := 1;
     k := 1;
