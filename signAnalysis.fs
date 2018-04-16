@@ -1,14 +1,11 @@
 module signAnalysis
+
 open tablesSign
+open constraintAnalysis
 open lattice
+open GC
+open programGraphs
 
-
-// ##########################
-// ##### Shared methods #####
-// ##########################
-
-let magic s1 s2 op = Set.fold (fun rst e1 -> Set.fold (fun rst e2 -> rst+(op (e1,e2))) Set.empty s2) Set.empty s1
-let isBoolOp b = List.contains b [Gt;Lt;Eq;Geq;Leq;Neq;Not;Land;Lor;True;False]
 let signOf x state = Set.fold (fun rst (y,sign,o,c) -> if y=x then Set.add sign rst else rst ) Set.empty state
 
 let rec Ac state = function
@@ -23,7 +20,8 @@ let rec Ac state = function
     | Node(Mlt,a1::a2::_)   -> magic (Ac state a1) (Ac state a2) multi
     | Node(Div,a1::a2::_)   -> magic (Ac state a1) (Ac state a2) divide
     | Node(a,_)             -> failwith("In As: unknown match for action "+(string a))
-let rec Bc state = function
+
+let rec Bs state = function
     | Node(True,_)          -> Set.ofList [True]
     | Node(False,_)         -> Set.ofList [False]
     | Node(Gt,a1::a2::_)    -> magic (Ac state a1) (Ac state a2) greater
@@ -32,66 +30,10 @@ let rec Bc state = function
     | Node(Geq,a1::a2::_)   -> magic (Ac state a1) (Ac state a2) greaterEq
     | Node(Leq,a1::a2::_)   -> magic (Ac state a1) (Ac state a2) lessEq
     | Node(Neq,a1::a2::_)   -> magic (Ac state a1) (Ac state a2) notEqual
-    | Node(Not,b1::_)       -> Set.fold (fun rst b -> _not b ) Set.empty (Bc state b1)
-    | Node(Lor,b1::b2::_)   -> magic (Bc state b1) (Bc state b2) _or
-    | Node(Land,b1::b2::_)  -> magic (Bc state b1) (Bc state b2) _and
+    | Node(Not,b1::_)       -> Set.fold (fun rst b -> (_not b)+rst ) Set.empty (Bs state b1)
+    | Node(Lor,b1::b2::_)   -> magic (Bs state b1) (Bs state b2) _or
+    | Node(Land,b1::b2::_)  -> magic (Bs state b1) (Bs state b2) _and
     | Node(a,_)             -> failwith("In Bs: unknown match for action "+(string a))
-
-let rec basic state = function
-    | []        -> [Set.empty]
-    | var::xs   ->
-        let varSet,extract = Set.partition (fun (x,signs,o,c) -> x=var ) state
-        Set.fold (fun rst elem ->
-            List.fold (fun rst' subset -> (Set.add elem subset)::rst' ) [] (basic extract xs)@rst
-        ) [] varSet
-let varsIn state = Set.fold (fun rst (x,sign,o,c) -> Set.add x rst ) Set.empty state
-let boolFilter b state =
-    let basicList = basic state (Set.toList (varsIn state))
-    List.fold (fun rst state' ->
-        if (Set.contains True (Bc state' b)) then state' + rst
-        else rst
-    ) Set.empty basicList
-
-
-
-
-// ###############################
-// ##### Constraint analysis #####
-// ###############################
-
-let removeOrigin set = Set.fold (fun rst (v,s,o,c) -> Set.add (v,s) rst ) Set.empty set
-let removeConcurrent set = removeOrigin (Set.filter (fun (v,s,o,c) -> (not (o=Concurrent)) ) set)
-
-let exVal_C = Ø
-
-let btm_C G = Set.fold (fun rst var -> (Set.ofList [(var,"0");(var,"+");(var,"-");(var,"T")]) + rst ) Ø (varsInGraph G)
-
-let Lc G =
-    let order s1 s2 = Set.intersect s1 s2
-    ((btm_C G),Ø,order)
-
-let con_Cg id s1 s2 c = Map.find id c
-let con_Ca id s1 s2 c =
-    let filtered = Set.filter (fun (v,s,o) -> o=Global ) (Set.union s1 s2)
-    let s' =  Set.fold (fun rst (v,s,o) -> Set.add (v,s,Concurrent) rst ) Set.empty filtered
-    match Map.tryFind id c with
-        | Some(s) -> Map.add id (s'+s) c
-        | None    -> Map.add id s' c
-
-let f_C Ls Lc Ss Sc (qs,a,qt,id) =
-    match a with
-    | Node( b, _ ) when isBoolOp b ->
-        let vars = varsInA a
-        let filtered = Set.filter (fun (x,s) -> (Set.contains x vars)) (removeOrigin (boolFilter a (top Ls) ) )
-        (filtered - (removeConcurrent Ss)) + Sc
-    | _ -> Sc
-
-
-
-
-// ###############################
-// ##### Detection Of Signs  #####
-// ###############################
 
 let top_s G =
     let vars = varsInGraph G
@@ -131,7 +73,7 @@ let update x signs c state =
     ) rSet signs
 
 let f_CS Ls Lc (Ss,Sc) (qs,a,qt,id) =
-    let Sc' = f_C Ls Lc Ss Sc (qs,a,qt,id)
+    let Sc' = f_C Bs Ls Lc Ss Sc (qs,a,qt,id)
     match a with
     | Node( Assign, Node(X(x),_)::fu::[] )  ->
         ((update x (Ac Ss fu) Sc Ss),Sc')
@@ -148,5 +90,5 @@ let f_CS Ls Lc (Ss,Sc) (qs,a,qt,id) =
     | Node( Recv,   ch::Node(A(ar),l)::xs)  ->
         ((update ar ( (Ac Ss ch) + (Ac Ss (Node(A(ar),l))) ) Sc Ss),Sc')
     | Node( b, _ ) when isBoolOp b          ->
-        ((boolFilter a Ss),Sc')
+        ((boolFilter Bs a Ss),Sc')
     | _ -> (Ss,Sc')

@@ -1,8 +1,12 @@
 module analysis
 
+open GC
+open programGraphs
 open worklistAlgorithm
 open bitVectorAnalyses
+open constraintAnalysis
 open signAnalysis
+open intervalAnalysis
 
 let E_initial ex    = List.fold (fun rst (qs,qt,id) -> (qs,id)::rst ) [] ex
 let E_final ex      = List.fold (fun rst (qs,qt,id) -> (qt,id)::rst ) [] ex
@@ -46,8 +50,36 @@ let detectionOfSignsAnalysis G ex =
     Map.iter (fun q (state,c) ->
         printf("q%-10A\t") q
         Set.iter (fun (x,s) -> printf("%5s-> %-5s " ) x s) state
+        printfn("")
+        ) colRes
+    printFooter G
+
+let rec mergeIntervals state = function
+    | []        -> Set.empty
+    | var::xs   ->
+        let varSet,extract = Set.partition (fun (x,signs,o,cstr) -> x=var ) state
+        let conVarSet = Set.fold (fun rst (v,i,o,c) -> Set.add (v,i) rst ) Ø varSet
+        Set.add (var,(Set.fold (fun rst (v,i) -> rst+i ) Empty conVarSet)) (mergeIntervals extract xs)
+let intervalToString i =
+    match i with
+    | Undefined  -> "Err"
+    | Empty      -> "?"
+    | I(max,min) when max=MAX && min=MIN -> "( ∞ : ∞ )"
+    | I(max,min) when max=MAX            -> "( "+(string min)+" : ∞ )"
+    | I(max,min) when min=MIN            -> "( ∞ : "+(string max)+" )"
+    | I(max,min)                         -> "( "+(string min)+" : "+(string max)+" )"
+let intervalAnalysis G ex =
+    printfn"\nInterval analysis"
+    let Li = ((btm_I G),(top_I G),order_I)
+    let res = MFP (L_I G) G (E_initial ex) (exVal_I G) (f_I Li (Lc G)) (con_Ig (Lci ob_I G)) con_Ia
+    let conRes = Map.fold (fun rst q (s,c) ->
+        Map.add q ( mergeIntervals s (Set.toList (varsIn s)) , c) rst ) Map.empty res
+    printfn "\n"
+    Map.iter (fun q (state,c) ->
+        printf("q%-10A\t") q
+        Set.iter (fun (x,i) -> printf("%5s-> %-20s" ) x (intervalToString i) ) state
         printf("\t[")
         Set.iter (fun e -> printf("%A") e ) c
         printfn("] ")
-        ) colRes
+        ) conRes
     printFooter G
