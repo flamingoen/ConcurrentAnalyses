@@ -13,11 +13,11 @@ parser:
 build: lexer parser
 
 run:
-	fsharpi main.fsx
+	@fsharpi main.fsx
 
 output:
-	fsharpi main.fsx > $(path)
-	cat $(path)
+	@fsharpi main.fsx > $(path)
+	@cat $(path)
 
 cleanOut:
 	rm results/*
