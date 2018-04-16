@@ -1,6 +1,7 @@
 module worklistAlgorithm
 
 open lattice
+open programGraphs
 
 // ########################################
 // ##### Information prints and stuff #####
@@ -9,8 +10,10 @@ open lattice
 let mutable transitions = 0
 let mutable maxWSize = 0
 
-let printStep (qs,a,qt,id) Aa Af W L c=
-    //printfn("id:%A  %A->%A:\t  %-10s W: %A") id qs qt (nodeToString a) (List.length W)
+let printStep (qs,a,qt,id) Aa Af W L c =
+    //printf("id:%A  %A->%A:\t  %-10s W: %A ") id qs qt (nodeToString a) (List.length W)
+    //List.iter (fun (qs,a,qt,id) ->  printf"(%A->%A)" qs qt ) W
+    //printfn("")
     //printMap c
     //printfn ""
     if transitions%100=0 then printf("\n")
@@ -22,7 +25,16 @@ let updateStats W =
     if len > maxWSize then maxWSize <- len
 
 
+// ##############################
+// #####   WORKLIST Types   #####
+// ##############################
 
+let appendFront_list t W = t::W
+let appendBack_list  t W = W@[t]
+let workList_list G = G
+let extract_list = function
+    | [] -> None
+    | x::xs -> Some(x,xs)
 
 // ##############################
 // ##### WORKLIST ALGORITHM #####
@@ -33,19 +45,20 @@ let initA nodes L E i =
     List.fold (fun rst (q,id) -> Map.add q i rst ) emptyA E
     ;;
 
-let appendFront t W = t::W
-let appendBack  t W = W@[t]
-
 let rec newW G (qs,a,qt,id) w append = function
-    | [] -> w@[(qs,a,qt,id)]
+    | [] -> append (qs,a,qt,id) w
     | (qs',a',qt',id')::xs when qs'=qt ->
         newW G (qs,a,qt,id) (append (qs',a',qt',id') w) append xs
+        //| (qs',a',qt',id')::xs when not(id'=id) ->
+        //    newW G (qs,a,qt,id) (append (qs',a',qt',id') w) append xs
     | x::xs -> newW G (qs,a,qt,id) w append xs ;;
 
-let rec MFP2 L E Aa f c con_g con_a F W =
-    match W with
-    | [] -> List.fold (fun rst (q,id) -> Map.add q ( lob (Map.find q rst) (con_g id (btm L) (btm L) c) L ) rst ) Aa E
-    | (qs,a,qt,id)::xs ->
+let rec MFP2 cons Aa c W =
+    let (L,E,f,con_g,con_a,G,insert,extract) = cons
+    match extract W with
+    | None ->
+        List.fold (fun rst (q,id) -> Map.add q ( lob (Map.find q rst) (con_g id (btm L) (btm L) c) L ) rst ) Aa E
+    | Some((qs,a,qt,id),xs) ->
         let sqs = (Map.find qs Aa)
         let sqt = (Map.find qt Aa)
         let newA = f sqs (qs,a,qt,id)
@@ -55,13 +68,15 @@ let rec MFP2 L E Aa f c con_g con_a F W =
         updateStats xs
         if analysisChanged then
             let Aa' = (Map.add qt (lob s' sqt L) Aa)
-            let W' = newW F (qs,a,qt,id) xs appendBack F
+            let W' = newW G (qs,a,qt,id) xs insert G
             let c' = con_a id sqs newA c
-            MFP2 L E Aa' f c' con_g con_a F W'
-        else MFP2 L E Aa f c con_g con_a F xs
+            MFP2 cons Aa' c' W'
+        else MFP2 cons Aa c xs
 
 let MFP L G E i f con_g con_a =
     let Q = allNodes G
     let A = initA Q L E i
-    MFP2 L E A f Map.empty con_g con_a G G
+    let W = workList_list G
+    let cons = (L,E,f,con_g,con_a,G,appendBack_list,extract_list)
+    MFP2 (L,E,f,con_g,con_a,G,appendBack_list,extract_list) A Map.empty W
     ;;
