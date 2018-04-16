@@ -3,32 +3,38 @@
 open System
 open System.IO
 
-// PARSE/LEX
-#load "GC.fs"
-open GC
+printfn""
+let stopWatch = System.Diagnostics.Stopwatch.StartNew()
+#load "GC.fs";
 #load "GuardedCommandParser.fs"
 #load "GuardedCommandLexer.fs"
-// GRAPH GENERATOR
 #load "programs.fs"
 #load "treeGenerator.fs"
 #load "programGraphs.fs"
-open programs
-open programGraphs
-open treeGenerator
-// GRAPHICAL OUTPUT
 #load "graphViz.fs"
-open graphViz
-// ANALYSES
 #load "lattice.fs"
 #load "bitVectorAnalyses.fs"
 #load "tablesSign.fs"
+#load "constraintAnalysis.fs"
 #load "signAnalysis.fs"
+#load "intervalAnalysis.fs"
 #load "worklistAlgorithm.fs"
 #load "analysis.fs"
+stopWatch.Stop()
+printfn "load time:\t%f ms" stopWatch.Elapsed.TotalMilliseconds
+
+stopWatch.Restart()
+open programs
+open programGraphs
+open treeGenerator
+open graphViz
 open analysis
+stopWatch.Stop()
+printfn "Open time:\t%f ms" stopWatch.Elapsed.TotalMilliseconds
 
-let program = testProgram2
+let program = fibonachi
 
+stopWatch.Restart()
 let syntaxTree =
     try parse program
     with e -> failwith ("could not parse program:\n"+program)
@@ -36,33 +42,28 @@ let syntaxTree =
 let (graph,ex) = ( pgGen syntaxTree )
 let (G,e) = (normalizeGraph graph ex)
 let (graphProduct,exValProduct) = productGraph G e
-
+printfn "Compile time:\t%f ms" stopWatch.Elapsed.TotalMilliseconds
 
 // GRAPHVIZ
+stopWatch.Restart()
 makeGraph G e
 makeProductGraph graphProduct e
+printfn "Graphviz:\t%f ms" stopWatch.Elapsed.TotalMilliseconds
 
+stopWatch.Restart()
 // REACHING DEFINITION
-//#time
 //reachingDefinition G e -1
-//#time
-//#time
 //reachingDefinition graphProduct exValProduct (Set.ofList [-1])
-//#time
-
 
 // LIVE VARIABLES
-//#time
 //liveVariables G e
-//#time
-//#time
 //liveVariables graphProduct exValProduct
-//#time
 
 // DETECTION OF SIGNS
-#time
 detectionOfSignsAnalysis G e
-#time
-//#time
 //detectionOfSignsAnalysis graphProduct exValProduct
-//#time
+
+// INTERVAL ANALYSIS
+//intervalAnalysis G e
+
+printfn "Analysis time: %f ms" stopWatch.Elapsed.TotalMilliseconds
