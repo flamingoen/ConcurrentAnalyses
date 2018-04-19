@@ -42,6 +42,7 @@ let rec varsInA = function
     | Node(_,lst) -> List.fold (fun rst a -> rst + (varsInA a)) Set.empty lst
     ;;
 
-let magic s1 s2 op = Set.fold (fun rst e1 -> Set.fold (fun rst e2 -> rst+(op (e1,e2))) Set.empty s2) Set.empty s1
+let magic s1 s2 op = Set.fold (fun rst e1 ->
+    (Set.fold (fun rst' e2 -> rst'+(op (e1,e2))) Set.empty s2)+rst ) Set.empty s1
 
 let Ø = Set.empty

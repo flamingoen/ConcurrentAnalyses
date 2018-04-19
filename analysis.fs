@@ -64,7 +64,7 @@ let intervalToString i =
     match i with
     | Undefined  -> "Err"
     | Empty      -> "?"
-    | I(max,min) when max=MAX && min=MIN -> "( ∞ : ∞ )"
+    | I(max,min) when max=MAX && min=MIN -> "( -∞ : ∞ )"
     | I(max,min) when max=MAX            -> "( "+(string min)+" : ∞ )"
     | I(max,min) when min=MIN            -> "( ∞ : "+(string max)+" )"
     | I(max,min)                         -> "( "+(string min)+" : "+(string max)+" )"
@@ -76,8 +76,8 @@ let intervalAnalysis G ex =
         Map.add q ( mergeIntervals s (Set.toList (varsIn s)) , c) rst ) Map.empty res
     printfn "\n"
     Map.iter (fun q (state,c) ->
-        printf("q%-10A\t") q
-        Set.iter (fun (x,i) -> printf("%5s-> %-20s" ) x (intervalToString i) ) state
+        printf("q%-5A\t") q
+        Set.iter (fun (x,i) -> printf("%5s-> %-12s" ) x (intervalToString i) ) state
         printf("\t[")
         Set.iter (fun e -> printf("%A") e ) c
         printfn("] ")

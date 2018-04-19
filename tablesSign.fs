@@ -25,6 +25,18 @@ let multi = function
     | "+","+" -> Set.ofList ["+"]
     | _       -> failwith("wrong sign detected")
 
+let modulo = function
+    | "-","-" -> Set.ofList ["-";"0"]
+    | "-","0" -> Set.empty
+    | "-","+" -> Set.ofList ["+";"0"]
+    | "0","-" -> Set.ofList ["0"]
+    | "0","0" -> Set.empty
+    | "0","+" -> Set.ofList ["0"]
+    | "+","-" -> Set.ofList ["0";"-"]
+    | "+","0" -> Set.empty
+    | "+","+" -> Set.ofList ["+";"0"]
+    | _       -> failwith("wrong sign detected")
+
 let minus = function
     | "-","-" -> Set.ofList ["-"; "0"; "+"]
     | "-","0" -> Set.ofList ["-"]

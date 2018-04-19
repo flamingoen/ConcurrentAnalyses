@@ -19,6 +19,7 @@ let rec Ac state = function
     | Node(Mi,a1::a2::_)    -> magic (Ac state a1) (Ac state a2) minus
     | Node(Mlt,a1::a2::_)   -> magic (Ac state a1) (Ac state a2) multi
     | Node(Div,a1::a2::_)   -> magic (Ac state a1) (Ac state a2) divide
+    | Node(Mod,a1::a2::_)   -> magic (Ac state a1) (Ac state a2) modulo
     | Node(a,_)             -> failwith("In As: unknown match for action "+(string a))
 
 let rec Bs state = function
