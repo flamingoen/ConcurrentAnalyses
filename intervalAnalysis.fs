@@ -5,8 +5,8 @@ open lattice
 open programGraphs
 open GC
 
-let MAX = 100
-let MIN = -100
+let MAX = 10
+let MIN = 0
 type interval =
     I of (int*int) | Undefined | Empty
     static member (+) (e1:interval,e2:interval) =
@@ -58,12 +58,12 @@ let plus = function
     | (Undefined,_)         -> Undefined
     | (_,Undefined)         -> Undefined
     | (I(mx,mn),I(mx',mn')) -> I( (min (mx+mx') MAX ),(max (mn+mn') MIN) )
-    | (_,_)                 -> failwith("plus operator in interval analysis failed")
+    | (_,_)                 -> Empty
 let minus  = function
     | (Undefined,_)         -> Undefined
     | (_,Undefined)         -> Undefined
     | (I(mx,mn),I(mx',mn')) -> I( (min (mx+mn') MAX ),(max (mn+mx') MIN ) )
-    | (_,_)                 -> failwith("minus operator in interval analysis failed")
+    | (_,_)                 -> Empty
 let multi = function
     | (Undefined,_)         -> Undefined
     | (_,Undefined)         -> Undefined
@@ -71,7 +71,7 @@ let multi = function
         let first = min (max (max (mx*mn') (mx*mx') ) (max (mn*mx') (mn*mn') )) MAX
         let second = max (min (min (mx*mn') (mx*mx') ) (min (mn*mx') (mn*mn') )) MIN
         I(first,second)
-    | (_,_)                 -> failwith("multi operator in interval analysis failed")
+    | (_,_)                 -> Empty
 let divide = function
     | (Undefined,_)         -> Undefined
     | (_,Undefined)         -> Undefined
@@ -81,7 +81,7 @@ let divide = function
         let first = min (max (max (mx/mn') (mx/mx') ) (max (mn/mx') (mn/mn') )) MAX
         let second = max (min (min (mx/mn') (mx/mx') ) (min (mn/mx') (mn/mn') )) MIN
         I(first,second)
-    | (_,_)                 -> Empty//failwith("divide operator in interval analysis failed")
+    | (_,_)                 -> Empty
 let modulo = function
     | (Undefined,_)         -> Undefined
     | (_,Undefined)         -> Undefined
@@ -91,7 +91,7 @@ let modulo = function
         let first = min (max (max (mx%mn') (mx%mx') ) (max (mn%mx') (mn%mn') )) MAX
         let second = max (min (min (mx%mn') (mx%mx') ) (min (mn%mx') (mn%mn') )) MIN
         I(first,second)
-    | (_,_)                 -> Empty//failwith("divide operator in interval analysis failed")
+    | (_,_)                 -> Empty
 let greater = function
     | (I(mx,mn),I(mx',mn')) when mn>mx'  -> Set.ofList [True]
     | (I(mx,mn),I(mx',mn')) when mn'>=mx -> Set.ofList [False]
@@ -168,8 +168,15 @@ let update x interval c state =
     if isLocal x then Set.add (x,interval,Local,c) rSet
     else Set.add (x,interval,Global,c) rSet
 
+let splitIntervalSet s = Set.fold (fun rst (v,i,o,c) ->
+    match i with
+    | I(max,min) -> (List.fold (fun rst' j -> Set.add (v,I(j,j),o,c) rst' ) Ø [min .. max])+rst
+    | _          -> Set.add (v,i,o,c) rst ) Ø s
+
+let mergeIntervalSet s = Set.fold (fun rst e -> order_I (Set.ofList [e]) rst) Ø s
+
 let f_I Li Lc (Ss,Sc) (qs,a,qt,id) =
-    let Sc' = f_C B_I Li Lc Ss Sc (qs,a,qt,id)
+    let Sc' = f_C B_I Li Lc (splitIntervalSet Ss) Sc (qs,a,qt,id)
     match a with
     | Node( Assign, Node(X(x),_)::fu::[] )  ->
         (update x (A_I Ss fu) Ø Ss , Sc')
@@ -186,6 +193,7 @@ let f_I Li Lc (Ss,Sc) (qs,a,qt,id) =
     | Node( Recv,   ch::Node(A(ar),l)::xs)  ->
         (update ar ((A_I Ss ch)+(A_I Ss (Node(A(ar),l)))) Ø Ss , Sc')
     | Node( b, _ ) when isBoolOp b          ->
-        ((boolFilter B_I a Ss),Sc')
+        let Ss' = mergeIntervalSet (boolFilter B_I a (splitIntervalSet Ss))
+        (Ss',Sc')
     | _ ->
         (Ss , Sc')

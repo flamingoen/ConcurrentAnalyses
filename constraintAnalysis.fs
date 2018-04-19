@@ -9,7 +9,7 @@ let varsIn state = Set.fold (fun rst (x,sign,o,c) -> Set.add x rst ) Set.empty s
 let rec basic state = function
     | []        -> [Set.empty]
     | var::xs   ->
-        let varSet,extract = Set.partition (fun (x,signs,o,c) -> x=var ) state
+        let varSet,extract = Set.partition (fun (x,e,o,c) -> x=var ) state
         Set.fold (fun rst elem ->
             List.fold (fun rst' subset -> (Set.add elem subset)::rst' ) [] (basic extract xs)@rst
         ) [] varSet
