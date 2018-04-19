@@ -48,6 +48,24 @@ par
 rap
 "
 
+let bakery2 = "
+par
+    do true ->
+        x1 := x2 + 1;
+        if x2 = 0 | x1 < x2 -> skip fi;
+        x2 := 0
+    od
+[]
+    do true ->
+        x2 := x1 + 1;
+        if x1 = 0 | x2 < x1 -> skip fi;
+        x1 := 0
+    od
+rap
+
+
+"
+
 let writeNoRead = "
 
 par
@@ -92,21 +110,42 @@ rap
 
 let multiplex = "
 par
-    var y;
-    c1?y;
-    c2!y
+    in1!10
+[]
+    in2!-10
 []
     var x;
-    if true -> x:=1
-    [] true -> x:=-1
+    if true -> in1?x; skip
+    [] true -> in2?x; x:=x- 1; skip
     fi;
-    c1!x
+    skip;
+    ch!x*2
 []
     var z;
-    c2?z
+    ch?z;
+    if z%2=0 -> out!z/2
+    [] z%2=1 -> out!z/2- 1
+    fi
 rap
 "
 
+let temp = "
+par
+    in1!1
+[]
+    in2!-1
+[]
+    var x;
+    if true -> in1?x; ch!2*x
+    [] true -> in2?x; ch!2*x-1
+    fi
+[]
+    var z;
+    if z%2=0 -> out!z/2
+    [] z%2=1 -> out!z/2
+    fi
+rap
+"
 
 let moduloProgram = "
 do m>=n -> m:=m-n od;
@@ -125,7 +164,6 @@ res := n
 "
 
 let fibonachi = "
-    n := 10;
     i := 0;
     j := 1;
     k := 1;
