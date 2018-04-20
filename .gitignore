@@ -3,7 +3,7 @@ GuardedCommandParser.fs
 GuardedCommandLexer.fs
 
 results/*
-graphviz/*
+*.gv
 FsLexYacc.Runtime.7.0.6
 FsLexYacc.7.0.6
 FSharp.Core.3.1.2.5
