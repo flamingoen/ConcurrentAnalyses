@@ -1,4 +1,4 @@
-module treeGenerator
+module TreeGenerator
 
 open Microsoft.FSharp.Text.Lexing
 open GuardedCommandParser

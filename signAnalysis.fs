@@ -1,10 +1,10 @@
-module signAnalysis
+module SignAnalysis
 
-open tablesSign
-open constraintAnalysis
-open lattice
+open TablesSign
+open ConstraintAnalysis
+open Lattice
 open GC
-open programGraphs
+open ProgramGraphs
 
 let signOf x state = Set.fold (fun rst (y,sign,o,c) -> if y=x then Set.add sign rst else rst ) Set.empty state
 

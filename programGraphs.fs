@@ -1,4 +1,4 @@
-module programGraphs
+module ProgramGraphs
 open GC
 
 // ##### GRAPH GENERATOR #####

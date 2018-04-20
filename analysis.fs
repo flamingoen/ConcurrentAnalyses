@@ -1,12 +1,12 @@
-module analysis
+module Analysis
 
 open GC
-open programGraphs
-open worklistAlgorithm
-open bitVectorAnalyses
-open constraintAnalysis
-open signAnalysis
-open intervalAnalysis
+open ProgramGraphs
+open WorklistAlgorithm
+open BitVectorAnalyses
+open ConstraintAnalysis
+open SignAnalysis
+open IntervalAnalysis
 
 let E_initial ex    = List.fold (fun rst (qs,qt,id) -> (qs,id)::rst ) [] ex
 let E_final ex      = List.fold (fun rst (qs,qt,id) -> (qt,id)::rst ) [] ex

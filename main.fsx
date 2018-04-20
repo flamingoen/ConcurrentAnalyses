@@ -24,15 +24,15 @@ stopWatch.Stop()
 printfn "load time:\t%f ms" stopWatch.Elapsed.TotalMilliseconds
 
 stopWatch.Restart()
-open programs
-open programGraphs
-open treeGenerator
-open graphViz
-open analysis
+open Programs
+open ProgramGraphs
+open TreeGenerator
+open GraphViz
+open Analysis
 stopWatch.Stop()
 printfn "Open time:\t%f ms" stopWatch.Elapsed.TotalMilliseconds
 
-let program = fibonachi
+let program = testProgram2
 
 stopWatch.Restart()
 let syntaxTree =
@@ -41,13 +41,13 @@ let syntaxTree =
 
 let (graph,ex) = ( pgGen syntaxTree )
 let (G,e) = (normalizeGraph graph ex)
-let (graphProduct,exValProduct) = productGraph G e
+//let (graphProduct,exValProduct) = productGraph G e
 printfn "Compile time:\t%f ms" stopWatch.Elapsed.TotalMilliseconds
 
 // GRAPHVIZ
 stopWatch.Restart()
 makeGraph G e
-makeProductGraph graphProduct e
+//makeProductGraph graphProduct e
 printfn "Graphviz:\t%f ms" stopWatch.Elapsed.TotalMilliseconds
 
 stopWatch.Restart()
@@ -60,10 +60,10 @@ stopWatch.Restart()
 //liveVariables graphProduct exValProduct
 
 // DETECTION OF SIGNS
-detectionOfSignsAnalysis G e
+//detectionOfSignsAnalysis G e
 //detectionOfSignsAnalysis graphProduct exValProduct
 
 // INTERVAL ANALYSIS
-//intervalAnalysis G e
+intervalAnalysis G e
 
 printfn "Analysis time: %f ms" stopWatch.Elapsed.TotalMilliseconds

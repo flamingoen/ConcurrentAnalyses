@@ -1,4 +1,4 @@
-module tablesSign
+module TablesSign
 open GC
 
 let plus = function

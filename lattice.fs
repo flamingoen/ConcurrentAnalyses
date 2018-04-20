@@ -1,4 +1,4 @@
-module lattice
+module Lattice
 
 type Lattice<'a when 'a : comparison> = Set<'a> * Set<'a> * Set<'a> -> Set<'a> -> Set<'a> ;;
 

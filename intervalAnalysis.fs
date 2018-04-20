@@ -1,8 +1,8 @@
-module intervalAnalysis
+module IntervalAnalysis
 
-open constraintAnalysis
-open lattice
-open programGraphs
+open ConstraintAnalysis
+open Lattice
+open ProgramGraphs
 open GC
 
 let MAX = 10

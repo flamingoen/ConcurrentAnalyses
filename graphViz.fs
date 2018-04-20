@@ -1,4 +1,4 @@
-module graphViz
+module GraphViz
 open GC
 
 let rec nodeToString = function

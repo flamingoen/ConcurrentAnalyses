@@ -1,4 +1,4 @@
-module programs
+module Programs
 
 let simpleProgram = "
 par x:=1 [] x:=-1 rap

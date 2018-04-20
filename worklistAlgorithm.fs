@@ -1,7 +1,8 @@
-module worklistAlgorithm
+module WorklistAlgorithm
 
-open lattice
-open programGraphs
+open Lattice
+open ProgramGraphs
+open GraphViz
 
 // ########################################
 // ##### Information prints and stuff #####
@@ -10,10 +11,9 @@ open programGraphs
 let mutable transitions = 0
 let mutable maxWSize = 0
 
-let printStep (qs,a,qt,id) Aa Af W L c =
-    //printf("id:%A  %A->%A:\t  %-10s W: %A ") id qs qt (nodeToString a) (List.length W)
+let printStep (qs,a,qt,id) W =
+    //printfn("id:%A  %A->%A:\t  %-10s W: %A ") id qs qt (nodeToString a) (List.length W)
     //List.iter (fun (qs,a,qt,id) ->  printf"(%A->%A)" qs qt ) W
-    //printfn("")
     //printMap c
     //printfn ""
     if transitions%100=0 then printf("\n")
@@ -59,12 +59,12 @@ let rec MFP2 cons Aa c W =
     | None ->
         List.fold (fun rst (q,id) -> Map.add q ( lob (Map.find q rst) (con_g id (btm L) (btm L) c) L ) rst ) Aa E
     | Some((qs,a,qt,id),xs) ->
+        printStep (qs,a,qt,id) xs
         let sqs = (Map.find qs Aa)
         let sqt = (Map.find qt Aa)
         let newA = f sqs (qs,a,qt,id)
         let s' = lob (newA) (con_g id sqs newA c) L
         let analysisChanged = (not (subeq s' sqt L))
-        printStep (qs,a,qt,id) Aa s' xs L c
         updateStats xs
         if analysisChanged then
             let Aa' = (Map.add qt (lob s' sqt L) Aa)
