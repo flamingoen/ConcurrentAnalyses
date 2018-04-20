@@ -1,9 +1,8 @@
 module IntervalAnalysis
 
+open Defines
 open ConstraintAnalysis
-open Lattice
 open ProgramGraphs
-open GC
 
 let MAX = 10
 let MIN = 0

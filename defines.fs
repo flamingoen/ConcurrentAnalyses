@@ -1,4 +1,4 @@
-module GC
+module Defines
 
 // ##### DEFINITIONS #####
 type action = N of int | X of string | A of string | C of string | Assign | P | Cp | Decl | Seq | Send | Recv | Skip | If | Loop | Do | Gc | Guard | True | False | Pl | Mi | Mlt | Div | Mod | Gt | Lt | Eq | Geq | Leq | Neq | Not | Land | Lor;;
@@ -23,6 +23,16 @@ let op =
     Recv,   "?";
     ] |> Map.ofList ;;
 
+// ##### LATTICE #####
+type Lattice<'a when 'a : comparison> = Set<'a> * Set<'a> * Set<'a> -> Set<'a> -> Set<'a> ;;
+
+let btm (b,t,o) = b ;;
+let top (b,t,o) = t ;;
+let lob s1 s2 (b,t,o) = o s1 s2 ;;
+let subeq s1 s2 (b,t,o) = (o s1 s2 ) = s2 ;;
+let supeq s1 s2 (b,t,o) = (o s1 s2 ) = s1 ;;
+let sup s1 s2 L = not (subeq s1 s2 L)
+let sub s1 s2 L = not (supeq s1 s2 L)
 
 // ##### HELPERS ####
 let printList list = List.iter (fun lst -> (printfn("%A") lst) ) list ;;

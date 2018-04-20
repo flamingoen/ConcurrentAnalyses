@@ -1,8 +1,7 @@
 module ConstraintAnalysis
 
-open Lattice
+open Defines
 open ProgramGraphs
-open GC
 
 let varsIn state = Set.fold (fun rst (x,sign,o,c) -> Set.add x rst ) Set.empty state
 

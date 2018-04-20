@@ -1,5 +1,5 @@
 %{
-open GC
+open Defines
 %}
 
 %token EOF
@@ -19,7 +19,7 @@ open GC
 
 // start
 %start start
-%type <GC.tree> start
+%type <Defines.tree> start
 
 %%
 

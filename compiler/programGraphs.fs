@@ -1,5 +1,5 @@
 module ProgramGraphs
-open GC
+open Defines
 
 // ##### GRAPH GENERATOR #####
 

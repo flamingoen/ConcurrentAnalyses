@@ -5,10 +5,10 @@ default: run
 all: build run
 
 lexer:
-	mono "FsLexYacc.7.0.6/build/fslex.exe" GuardedCommandLexer.fsl --unicode
+	mono "FsLexYacc.7.0.6/build/fslex.exe" lexerParser/GuardedCommandLexer.fsl --unicode
 
 parser:
-	mono "FsLexYacc.7.0.6/build/fsyacc.exe" GuardedCommandParser.fsp --module GuardedCommandParser
+	mono "FsLexYacc.7.0.6/build/fsyacc.exe" lexerParser/GuardedCommandParser.fsp --module GuardedCommandParser
 
 build: lexer parser
 
@@ -24,6 +24,6 @@ cleanOut:
 	rm graphviz/*
 
 cleanParserLexer:
-	rm GuardedCommandLexer.fs GuardedCommandParser.fs GuardedCommandParser.fsi
+	rm lexerParser/GuardedCommandLexer.fs lexerParser/GuardedCommandParser.fs lexerParser/GuardedCommandParser.fsi
 
 clean: cleanOut cleanParserLexer

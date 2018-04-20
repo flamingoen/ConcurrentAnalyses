@@ -1,5 +1,5 @@
 module TablesSign
-open GC
+open Defines
 
 let plus = function
     | "-","-" -> Set.ofList ["-"]

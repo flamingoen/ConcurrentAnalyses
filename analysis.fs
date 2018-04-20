@@ -1,6 +1,6 @@
 module Analysis
 
-open GC
+open Defines
 open ProgramGraphs
 open WorklistAlgorithm
 open BitVectorAnalyses

@@ -1,6 +1,6 @@
 module WorklistAlgorithm
 
-open Lattice
+open Defines
 open ProgramGraphs
 open GraphViz
 

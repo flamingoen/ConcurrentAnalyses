@@ -5,19 +5,18 @@ open System.IO
 
 printfn""
 let stopWatch = System.Diagnostics.Stopwatch.StartNew()
-#load "GC.fs";
-#load "GuardedCommandParser.fs"
-#load "GuardedCommandLexer.fs"
+#load "defines.fs";
+#load "lexerParser/GuardedCommandParser.fs"
+#load "lexerParser/GuardedCommandLexer.fs"
 #load "programs.fs"
-#load "treeGenerator.fs"
-#load "programGraphs.fs"
-#load "graphViz.fs"
-#load "lattice.fs"
-#load "bitVectorAnalyses.fs"
-#load "tablesSign.fs"
-#load "constraintAnalysis.fs"
-#load "signAnalysis.fs"
-#load "intervalAnalysis.fs"
+#load "compiler/treeGenerator.fs"
+#load "compiler/programGraphs.fs"
+#load "graphviz/graphViz.fs"
+#load "analyses/bitVectorAnalyses.fs"
+#load "analyses/tablesSign.fs"
+#load "analyses/constraintAnalysis.fs"
+#load "analyses/signAnalysis.fs"
+#load "analyses/intervalAnalysis.fs"
 #load "worklistAlgorithm.fs"
 #load "analysis.fs"
 stopWatch.Stop()
