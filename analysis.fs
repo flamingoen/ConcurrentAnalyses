@@ -1,6 +1,7 @@
 module Analysis
 
 open Defines
+open Policies
 open ProgramGraphs
 open WorklistAlgorithm
 open BitVectorAnalyses
@@ -10,11 +11,23 @@ open IntervalAnalysis
 
 let E_initial ex    = List.fold (fun rst (qs,qt,id) -> (qs,id)::rst ) [] ex
 let E_final ex      = List.fold (fun rst (qs,qt,id) -> (qt,id)::rst ) [] ex
-let printFooter G   = printfn("\nTransitions taken: %A    Max worklist size: %A    Nodes: %i    Transitions: %i") transitions maxWSize (Set.count (allNodes G)) (List.length G)
+let printFooter G  =
+    printf"\nTransitions taken: %A    " transitions
+    printf"Max worklist size: %A    " maxWSize
+    printf"Nodes: %i    " (Set.count (allNodes G))
+    printfn"Transitions: %i    " (List.length G)
+let printPolicy p =
+    printfn"\nPolicies:"
+    printf"Satified in:\t"
+    (Map.iter(fun q b -> if b then (printf"%A " q) else printf"" ) p)
+    printf"\nUnsatified in:\t"
+    (Map.iter(fun q b -> if b then (printf"") else (printf"%A " q) ) p)
+    printfn""
+
 
 let reachingDefinition G ex non =
     printf"\nReaching definition:"
-    let res = MFP (L_RD G) G (E_initial ex) (exVal_RD G non) (f_RD non) con_RDg con_RDa
+    let (res,p) = MFP (L_RD G) G (E_initial ex) (exVal_RD G non) (f_RD non) con_RDg con_RDa p_true
     printfn "\n"
     Map.iter (fun q state ->
         printf("q%A:\t") q
@@ -25,7 +38,7 @@ let reachingDefinition G ex non =
 
 let liveVariables G ex =
     printf"\nLive variables:"
-    let res = MFP L_LV (inverse G) (E_final ex) exVal_LV f_LV con_LVg con_LVa
+    let (res,p) = MFP L_LV (inverse G) (E_final ex) exVal_LV f_LV con_LVg con_LVa p_true
     printfn("\n")
     Map.iter (fun q state ->
         printf("q%A:\t") q
@@ -40,10 +53,11 @@ let rec condenseState state = function
         let varSet,extract = Set.partition (fun (x,signs,o,cstr) -> x=var ) state
         let conVarSet = Set.fold (fun rst (x,sign,o,cstr) -> Set.add (x,sign) rst ) Ø varSet
         Set.add (var,(Set.foldBack (fun (x,s) rst -> if rst="" then s+rst else s+","+rst ) conVarSet  "")) (condenseState extract xs)
-let detectionOfSignsAnalysis G ex =
+let detectionOfSignsAnalysis G p ex =
     printfn"\nDetection of signs analysis"
-    let f = f_CS (Ls G) (Lc G)
-    let res = MFP (Lcs G) G (E_initial ex) (exVal_CS G) f (con_CSg (Lc G)) con_CSa
+    let f = f_CS ((Ls G),(Lc G))
+    let policySatisfied = p_s p
+    let (res,sat) = MFP (Lcs G) G (E_initial ex) (exVal_CS G) f (con_CSg (Lc G)) con_CSa policySatisfied
     printfn "\n"
     let colRes = Map.fold (fun rst q (s,c) ->
         Map.add q ( condenseState s (Set.toList (varsIn s)) , c) rst ) Map.empty res
@@ -53,6 +67,7 @@ let detectionOfSignsAnalysis G ex =
         printfn("")
         ) colRes
     printFooter G
+    printPolicy sat
 
 let rec mergeIntervals state = function
     | []        -> Set.empty
@@ -68,10 +83,11 @@ let intervalToString i =
     | I(max,min) when max=MAX            -> "( "+(string min)+" : ∞ )"
     | I(max,min) when min=MIN            -> "( ∞ : "+(string max)+" )"
     | I(max,min)                         -> "( "+(string min)+" : "+(string max)+" )"
-let intervalAnalysis G ex =
+let intervalAnalysis G p ex =
     printfn"\nInterval analysis"
     let Li = ((btm_I G),(top_I G),order_I)
-    let res = MFP (L_I G) G (E_initial ex) (exVal_I G) (f_I Li (Lc G)) (con_Ig (Lci ob_I G)) con_Ia
+    let policySatisfied = p_I p
+    let (res,sat) = MFP (L_I G) G (E_initial ex) (exVal_I G) (f_I (Li,(Lc G))) (con_Ig (Lci ob_I G)) con_Ia policySatisfied
     let conRes = Map.fold (fun rst q (s,c) ->
         Map.add q ( mergeIntervals s (Set.toList (varsIn s)) , c) rst ) Map.empty res
     printfn "\n"
@@ -83,3 +99,4 @@ let intervalAnalysis G ex =
         printfn("] ")
         ) conRes
     printFooter G
+    printPolicy sat

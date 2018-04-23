@@ -1,6 +1,7 @@
 module WorklistAlgorithm
 
 open Defines
+open Policies
 open ProgramGraphs
 open GraphViz
 
@@ -53,11 +54,13 @@ let rec newW G (qs,a,qt,id) w append = function
         //    newW G (qs,a,qt,id) (append (qs',a',qt',id') w) append xs
     | x::xs -> newW G (qs,a,qt,id) w append xs ;;
 
-let rec MFP2 cons Aa c W =
-    let (L,E,f,con_g,con_a,G,insert,extract) = cons
+let rec MFP2 cons Aa c p W =
+    let (L,E,f,con_g,con_a,G,insert,extract,policySatisfied) = cons
     match extract W with
     | None ->
-        List.fold (fun rst (q,id) -> Map.add q ( lob (Map.find q rst) (con_g id (btm L) (btm L) c) L ) rst ) Aa E
+        let r = List.fold (fun rst (q,id) ->
+            Map.add q ( lob (Map.find q rst) (con_g id (btm L) (btm L) c) L ) rst ) Aa E
+        (r,p)
     | Some((qs,a,qt,id),xs) ->
         printStep (qs,a,qt,id) xs
         let sqs = (Map.find qs Aa)
@@ -67,16 +70,18 @@ let rec MFP2 cons Aa c W =
         let analysisChanged = (not (subeq s' sqt L))
         updateStats xs
         if analysisChanged then
-            let Aa' = (Map.add qt (lob s' sqt L) Aa)
+            let sqt' = (lob s' sqt L)
+            let Aa' = (Map.add qt sqt' Aa)
             let W' = newW G (qs,a,qt,id) xs insert G
             let c' = con_a id sqs newA c
-            MFP2 cons Aa' c' W'
-        else MFP2 cons Aa c xs
+            let p' = Map.add qt (policySatisfied sqt') p
+            MFP2 cons Aa' c' p' W'
+        else MFP2 cons Aa c p xs
 
-let MFP L G E i f con_g con_a =
+let MFP L G E i f con_g con_a ps =
     let Q = allNodes G
     let A = initA Q L E i
     let W = workList_list G
     let cons = (L,E,f,con_g,con_a,G,appendBack_list,extract_list)
-    MFP2 (L,E,f,con_g,con_a,G,appendBack_list,extract_list) A Map.empty W
+    MFP2 (L,E,f,con_g,con_a,G,appendBack_list,extract_list,ps) A Map.empty Map.empty W
     ;;

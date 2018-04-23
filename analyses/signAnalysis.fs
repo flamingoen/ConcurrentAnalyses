@@ -1,6 +1,7 @@
 module SignAnalysis
 
 open Defines
+open Policies
 open TablesSign
 open ConstraintAnalysis
 open ProgramGraphs
@@ -72,7 +73,16 @@ let update x signs c state =
         else Set.add (x,sign,Global,c) rst
     ) rSet signs
 
-let f_CS Ls Lc (Ss,Sc) (qs,a,qt,id) =
+let ruleToSign = function
+    | R_Pl -> "+"
+    | R_Mi -> "-"
+    | R_Zr -> "0"
+
+let p_s p (s,c) =
+    List.forall (fun (v,r) ->
+        Set.fold (fun xs (v',s,o,c) -> ( v=v' && (ruleToSign r)=s) || xs ) false s ) p
+
+let f_CS (Ls,Lc) (Ss,Sc) (qs,a,qt,id) =
     let Sc' = f_C Bs Ls Lc Ss Sc (qs,a,qt,id)
     match a with
     | Node( Assign, Node(X(x),_)::fu::[] )  ->

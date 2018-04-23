@@ -1,11 +1,12 @@
 module IntervalAnalysis
 
 open Defines
+open Policies
 open ConstraintAnalysis
 open ProgramGraphs
 
-let MAX = 10
-let MIN = 0
+let MAX = 100
+let MIN = -100
 type interval =
     I of (int*int) | Undefined | Empty
     static member (+) (e1:interval,e2:interval) =
@@ -102,8 +103,8 @@ let less = function
     | (I(mx,mn),I(mx',mn'))              -> Set.ofList [True; False]
     | (_,_)                              -> Ø
 let equal = function
-    | (I(mx,mn),I(mx',mn')) when mn<mx' -> Set.ofList [False]
-    | (I(mx,mn),I(mx',mn')) when mx<mn' -> Set.ofList [False]
+    | (I(mx,mn),I(mx',mn')) when mx'<mn && mn'<mn -> Set.ofList [False]
+    | (I(mx,mn),I(mx',mn')) when mx'>mx && mn'>mx -> Set.ofList [False]
     | (I(mx,mn),I(mx',mn')) when mx=mn && mx=mx' && mx=mn' -> Set.ofList [True]
     | (I(mx,mn),I(mx',mn'))             -> Set.ofList [True; False]
     | (_,_)                             -> Ø
@@ -174,7 +175,7 @@ let splitIntervalSet s = Set.fold (fun rst (v,i,o,c) ->
 
 let mergeIntervalSet s = Set.fold (fun rst e -> order_I (Set.ofList [e]) rst) Ø s
 
-let f_I Li Lc (Ss,Sc) (qs,a,qt,id) =
+let f_I (Li,Lc) (Ss,Sc) (qs,a,qt,id) =
     let Sc' = f_C B_I Li Lc (splitIntervalSet Ss) Sc (qs,a,qt,id)
     match a with
     | Node( Assign, Node(X(x),_)::fu::[] )  ->
@@ -196,3 +197,13 @@ let f_I Li Lc (Ss,Sc) (qs,a,qt,id) =
         (Ss',Sc')
     | _ ->
         (Ss , Sc')
+
+let ruleToInterval = function
+    | R_Pl -> I(MAX,(max 1 MIN))
+    | R_Mi -> I((min -1 MAX),MIN)
+    | R_Zr -> I(0,0)
+
+let p_I p (s,c) =
+    List.forall (fun (v,r) ->
+        let rule = (ruleToInterval r)
+        Set.fold (fun xs (v',i,o,c) -> v=v' && (Set.contains True (equal (i,rule)) ) && not(i=Empty) || xs ) false s ) p
