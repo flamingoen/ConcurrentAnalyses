@@ -3,6 +3,8 @@
 open System
 open System.IO
 
+type analysisType = RD | LV | DOS | DOI
+
 printfn""
 let stopWatch = System.Diagnostics.Stopwatch.StartNew()
 #load "defines.fs";
@@ -12,6 +14,7 @@ let stopWatch = System.Diagnostics.Stopwatch.StartNew()
 #load "compiler/treeGenerator.fs"
 #load "compiler/programGraphs.fs"
 #load "graphviz/graphViz.fs"
+#load "analyses/policies.fs"
 #load "analyses/bitVectorAnalyses.fs"
 #load "analyses/tablesSign.fs"
 #load "analyses/constraintAnalysis.fs"
@@ -31,7 +34,10 @@ open Analysis
 stopWatch.Stop()
 printfn "Open time:\t%f ms" stopWatch.Elapsed.TotalMilliseconds
 
-let program = testProgram2
+let program = multiplex
+let analysisType = DOS
+open Policies
+let policy = [("in1",R_Pl);("x{2}",R_Pl)]
 
 stopWatch.Restart()
 let syntaxTree =
@@ -40,7 +46,7 @@ let syntaxTree =
 
 let (graph,ex) = ( pgGen syntaxTree )
 let (G,e) = (normalizeGraph graph ex)
-//let (graphProduct,exValProduct) = productGraph G e
+let (graphProduct,exValProduct) = productGraph G e
 printfn "Compile time:\t%f ms" stopWatch.Elapsed.TotalMilliseconds
 
 // GRAPHVIZ
@@ -50,19 +56,19 @@ makeGraph G e
 printfn "Graphviz:\t%f ms" stopWatch.Elapsed.TotalMilliseconds
 
 stopWatch.Restart()
-// REACHING DEFINITION
-//reachingDefinition G e -1
-//reachingDefinition graphProduct exValProduct (Set.ofList [-1])
+let run = function
+    | RD  ->
+        reachingDefinition G e -1
+    | LV  ->
+        liveVariables G e
+    | DOS ->
+        detectionOfSignsAnalysis G policy e
+    | DOI ->
+        intervalAnalysis G policy e
 
-// LIVE VARIABLES
-//liveVariables G e
-//liveVariables graphProduct exValProduct
-
-// DETECTION OF SIGNS
-//detectionOfSignsAnalysis G e
-//detectionOfSignsAnalysis graphProduct exValProduct
-
-// INTERVAL ANALYSIS
-intervalAnalysis G e
-
+run analysisType
 printfn "Analysis time: %f ms" stopWatch.Elapsed.TotalMilliseconds
+
+//reachingDefinition graphProduct exValProduct (Set.ofList [-1])
+//liveVariables graphProduct exValProduct
+//detectionOfSignsAnalysis graphProduct exValProduct
