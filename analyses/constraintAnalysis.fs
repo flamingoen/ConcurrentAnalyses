@@ -25,13 +25,19 @@ let removeConcurrent set = removeOrigin (Set.filter (fun (v,s,o,c) -> (not (o=Co
 
 let exVal_C = Ø
 
-let btm_C G = Set.fold (fun rst var -> (Set.ofList [(var,"0");(var,"+");(var,"-");(var,"T")]) + rst ) Ø (varsInGraph G)
+let btm_C G = Set.fold (fun rst var -> (Set.ofList [(var,Pos);(var,Neg);(var,Zero)]) + rst ) Ø (varsInGraph G)
 
 let btm_Ci G i = Set.fold (fun rst var -> Set.add (var,i) rst ) Ø (varsInGraph G)
+
+let btm_Cp G = Set.fold (fun rst var -> (Set.ofList [(var,Odd);(var,Even)]) + rst ) Ø (varsInGraph G)
 
 let Lci i G =
     let order s1 s2 = Set.intersect s1 s2
     ((btm_Ci G i),Ø,order)
+
+let Lcp G =
+    let order s1 s2 = Set.intersect s1 s2
+    ((btm_Cp G),Ø,order)
 
 let Lc G =
     let order s1 s2 = Set.intersect s1 s2

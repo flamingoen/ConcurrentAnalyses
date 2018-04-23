@@ -3,7 +3,7 @@
 open System
 open System.IO
 
-type analysisType = RD | LV | DOS | DOI
+type analysisType = RD | LV | DOS | DOI | PAR
 
 printfn""
 let stopWatch = System.Diagnostics.Stopwatch.StartNew()
@@ -20,6 +20,7 @@ let stopWatch = System.Diagnostics.Stopwatch.StartNew()
 #load "analyses/constraintAnalysis.fs"
 #load "analyses/signAnalysis.fs"
 #load "analyses/intervalAnalysis.fs"
+#load "analyses/parityAnalysis.fs"
 #load "worklistAlgorithm.fs"
 #load "analysis.fs"
 stopWatch.Stop()
@@ -37,7 +38,7 @@ printfn "Open time:\t%f ms" stopWatch.Elapsed.TotalMilliseconds
 let program = multiplex
 let analysisType = DOS
 open Policies
-let policy = [("in1",R_Pl);("x{2}",R_Pl)]
+let policy = [("ch",R_Even)]
 
 stopWatch.Restart()
 let syntaxTree =
@@ -65,6 +66,8 @@ let run = function
         detectionOfSignsAnalysis G policy e
     | DOI ->
         intervalAnalysis G policy e
+    | PAR ->
+        parityAnalysis G policy e
 
 run analysisType
 printfn "Analysis time: %f ms" stopWatch.Elapsed.TotalMilliseconds

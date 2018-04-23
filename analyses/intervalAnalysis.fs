@@ -7,16 +7,6 @@ open ProgramGraphs
 
 let MAX = 100
 let MIN = -100
-type interval =
-    I of (int*int) | Undefined | Empty
-    static member (+) (e1:interval,e2:interval) =
-        match (e1,e2) with
-        | (Undefined,_) -> Undefined
-        | (_,Undefined) -> Undefined
-        | (Empty,i)     -> i
-        | (i,Empty)     -> i
-        | (I(mx,mn),I(mx',mn')) -> I((max mx mx'),(min mn mn'))
-
 
 let ob_I = I(MAX,MIN)
 let lb_I = Empty
@@ -202,6 +192,7 @@ let ruleToInterval = function
     | R_Pl -> I(MAX,(max 1 MIN))
     | R_Mi -> I((min -1 MAX),MIN)
     | R_Zr -> I(0,0)
+    | _    -> ob_I
 
 let p_I p (s,c) =
     List.forall (fun (v,r) ->

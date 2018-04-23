@@ -12,9 +12,9 @@ let rec Ac state = function
     | Node(X(x),_)          -> signOf x state
     | Node(A(arr),_)        -> signOf arr state
     | Node(C(ch),_)         -> signOf ch state
-    | Node(N(0),_)          -> Set.ofList ["0"]
-    | Node(N(n),_) when n>0 -> Set.ofList ["+"]
-    | Node(N(n),_) when n<0 -> Set.ofList ["-"]
+    | Node(N(0),_)          -> Set.ofList [Zero]
+    | Node(N(n),_) when n>0 -> Set.ofList [Pos]
+    | Node(N(n),_) when n<0 -> Set.ofList [Neg]
     | Node(Pl,a1::a2::_)    -> magic (Ac state a1) (Ac state a2) plus
     | Node(Mi,a1::a2::_)    -> magic (Ac state a1) (Ac state a2) minus
     | Node(Mlt,a1::a2::_)   -> magic (Ac state a1) (Ac state a2) multi
@@ -38,7 +38,7 @@ let rec Bs state = function
 
 let top_s G =
     let vars = varsInGraph G
-    Set.fold (fun rst var -> if isLocal var then (Set.ofList [(var,"0",Local,Ø);(var,"+",Local,Ø);(var,"-",Local,Ø)])+rst else (Set.ofList [(var,"0",Global,Ø);(var,"+",Global,Ø);(var,"-",Global,Ø)])+rst ) Ø vars
+    Set.fold (fun rst var -> if isLocal var then (Set.ofList [(var,Zero,Local,Ø);(var,Pos,Local,Ø);(var,Neg,Local,Ø)])+rst else (Set.ofList [(var,Zero,Global,Ø);(var,Pos,Global,Ø);(var,Neg,Global,Ø)])+rst ) Ø vars
 
 let Ls G =
     let order s1 s2 = Set.(+) (s1,s2)
@@ -50,7 +50,7 @@ let Lcs G = ((Ø,(btm_C G)),((top_s G),Ø),order_CS)
 let exVal_CS G =
     let vars = removeLocalVars (varsInGraph G)
     let ex_s = Set.fold (fun rst var ->
-        (Set.ofList [(var,"0",Initial,Ø);(var,"+",Initial,Ø);(var,"-",Initial,Ø)])+rst) Ø vars
+        (Set.ofList [(var,Zero,Initial,Ø);(var,Pos,Initial,Ø);(var,Neg,Initial,Ø)])+rst) Ø vars
     (ex_s,exVal_C)
 
 let con_CSg Lc id (s1,c1) (s2,c2) c =
@@ -74,13 +74,14 @@ let update x signs c state =
     ) rSet signs
 
 let ruleToSign = function
-    | R_Pl -> "+"
-    | R_Mi -> "-"
-    | R_Zr -> "0"
+    | R_Pl -> Set.ofList [Pos]
+    | R_Mi -> Set.ofList [Neg]
+    | R_Zr -> Set.ofList [Zero]
+    | _    -> Set.ofList [Pos;Neg;Zero]
 
 let p_s p (s,c) =
     List.forall (fun (v,r) ->
-        Set.fold (fun xs (v',s,o,c) -> ( v=v' && (ruleToSign r)=s) || xs ) false s ) p
+        Set.fold (fun xs (v',s,o,c) -> v=v' && Set.contains s (ruleToSign r) || xs ) false s ) p
 
 let f_CS (Ls,Lc) (Ss,Sc) (qs,a,qt,id) =
     let Sc' = f_C Bs Ls Lc Ss Sc (qs,a,qt,id)
@@ -90,9 +91,9 @@ let f_CS (Ls,Lc) (Ss,Sc) (qs,a,qt,id) =
     | Node( Assign, Node(A(ar),l)::fu::[] ) ->
         ((update ar (Ac Ss fu+(Ac Ss (Node(A(ar),l)))) Sc Ss),Sc')
     | Node( Decl,   Node(X(x),_)::xs )      ->
-        ((update x (Set.ofList ["0"]) Sc Ss),Sc')
+        ((update x (Set.ofList [Zero]) Sc Ss),Sc')
     | Node( Decl,   Node(A(ar),l)::xs)      ->
-        ((update ar ((Ac Ss (Node(A(ar),l)))+(Set.ofList ["0"])) Sc Ss),Sc')
+        ((update ar ((Ac Ss (Node(A(ar),l)))+(Set.ofList [Zero])) Sc Ss),Sc')
     | Node( Send,   Node(C(ch),_)::x::xs)   ->
         ((update ch (Ac Ss x) Sc Ss),Sc')
     | Node( Recv,   ch::Node(X(x),_)::xs)   ->
@@ -102,3 +103,8 @@ let f_CS (Ls,Lc) (Ss,Sc) (qs,a,qt,id) =
     | Node( b, _ ) when isBoolOp b          ->
         ((boolFilter Bs a Ss),Sc')
     | _ -> (Ss,Sc')
+
+let signToString = function
+    | Pos  -> "+"
+    | Neg  -> "-"
+    | Zero -> "0"

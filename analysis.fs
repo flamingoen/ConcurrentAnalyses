@@ -8,6 +8,7 @@ open BitVectorAnalyses
 open ConstraintAnalysis
 open SignAnalysis
 open IntervalAnalysis
+open ParityAnalysis
 
 let E_initial ex    = List.fold (fun rst (qs,qt,id) -> (qs,id)::rst ) [] ex
 let E_final ex      = List.fold (fun rst (qs,qt,id) -> (qt,id)::rst ) [] ex
@@ -16,12 +17,13 @@ let printFooter G  =
     printf"Max worklist size: %A    " maxWSize
     printf"Nodes: %i    " (Set.count (allNodes G))
     printfn"Transitions: %i    " (List.length G)
-let printPolicy p =
-    printfn"\nPolicies:"
-    printf"Satified in:\t"
-    (Map.iter(fun q b -> if b then (printf"%A " q) else printf"" ) p)
+let printPolicy p sat =
+    printf"\nPolicies: "
+    List.iter (fun policy -> printf("%s ") (policyToString policy) ) p
+    printf"\nUnknown in:\t"
+    Map.iter(fun q b -> if b then (printf"%A " q) else printf"" ) sat
     printf"\nUnsatified in:\t"
-    (Map.iter(fun q b -> if b then (printf"") else (printf"%A " q) ) p)
+    Map.iter(fun q b -> if b then (printf"") else (printf"%A " q) ) sat
     printfn""
 
 
@@ -47,12 +49,12 @@ let liveVariables G ex =
         ) res
     printFooter G
 
-let rec condenseState state = function
+let rec condenseState toString state = function
     | []        -> Set.empty
     | var::xs   ->
         let varSet,extract = Set.partition (fun (x,signs,o,cstr) -> x=var ) state
         let conVarSet = Set.fold (fun rst (x,sign,o,cstr) -> Set.add (x,sign) rst ) Ø varSet
-        Set.add (var,(Set.foldBack (fun (x,s) rst -> if rst="" then s+rst else s+","+rst ) conVarSet  "")) (condenseState extract xs)
+        Set.add (var,(Set.foldBack (fun (x,s) rst -> if rst="" then (toString s)+rst else (toString s)+","+rst ) conVarSet  "")) (condenseState toString extract xs)
 let detectionOfSignsAnalysis G p ex =
     printfn"\nDetection of signs analysis"
     let f = f_CS ((Ls G),(Lc G))
@@ -60,14 +62,14 @@ let detectionOfSignsAnalysis G p ex =
     let (res,sat) = MFP (Lcs G) G (E_initial ex) (exVal_CS G) f (con_CSg (Lc G)) con_CSa policySatisfied
     printfn "\n"
     let colRes = Map.fold (fun rst q (s,c) ->
-        Map.add q ( condenseState s (Set.toList (varsIn s)) , c) rst ) Map.empty res
+        Map.add q ( condenseState signToString s (Set.toList (varsIn s)) , c) rst ) Map.empty res
     Map.iter (fun q (state,c) ->
         printf("q%-10A\t") q
         Set.iter (fun (x,s) -> printf("%5s-> %-5s " ) x s) state
         printfn("")
         ) colRes
     printFooter G
-    printPolicy sat
+    printPolicy p sat
 
 let rec mergeIntervals state = function
     | []        -> Set.empty
@@ -99,4 +101,21 @@ let intervalAnalysis G p ex =
         printfn("] ")
         ) conRes
     printFooter G
-    printPolicy sat
+    printPolicy p sat
+
+
+let parityAnalysis G p ex =
+    printfn"\n Parity analysis"
+    let f = f_p ((Lp G),(Lc G))
+    let policySatisfied = p_p p
+    let (res,sat) = MFP (Lpc G) G (E_initial ex) (exVal_p G) f (con_pg (Lcp G)) con_pa policySatisfied
+    printfn "\n"
+    let colRes = Map.fold (fun rst q (s,c) ->
+        Map.add q ( condenseState parityToString s (Set.toList (varsIn s)) , c) rst ) Map.empty res
+    Map.iter (fun q (state,c) ->
+        printf("q%-10A\t") q
+        Set.iter (fun (x,s) -> printf("%5s-> %-5A " ) x s) state
+        printfn("")
+        ) colRes
+    printFooter G
+    printPolicy p sat

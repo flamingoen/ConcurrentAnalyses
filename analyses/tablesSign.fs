@@ -2,136 +2,125 @@ module TablesSign
 open Defines
 
 let plus = function
-    | "-","-" -> Set.ofList ["-"]
-    | "-","0" -> Set.ofList ["-"]
-    | "-","+" -> Set.ofList ["-"; "0"; "+"]
-    | "0","-" -> Set.ofList ["-"]
-    | "0","0" -> Set.ofList ["0"]
-    | "0","+" -> Set.ofList ["+"]
-    | "+","-" -> Set.ofList ["-"; "0"; "+"]
-    | "+","0" -> Set.ofList ["+"]
-    | "+","+" -> Set.ofList ["+"]
-    | _       -> failwith("wrong sign detected")
+    | Neg,Neg -> Set.ofList [Neg]
+    | Neg,Zero -> Set.ofList [Neg]
+    | Neg,Pos -> Set.ofList [Neg; Zero; Pos]
+    | Zero,Neg -> Set.ofList [Neg]
+    | Zero,Zero -> Set.ofList [Zero]
+    | Zero,Pos -> Set.ofList [Pos]
+    | Pos,Neg -> Set.ofList [Neg; Zero; Pos]
+    | Pos,Zero -> Set.ofList [Pos]
+    | Pos,Pos -> Set.ofList [Pos]
 
 let multi = function
-    | "-","-" -> Set.ofList ["+"]
-    | "-","0" -> Set.ofList ["0"]
-    | "-","+" -> Set.ofList ["-"]
-    | "0","-" -> Set.ofList ["0"]
-    | "0","0" -> Set.ofList ["0"]
-    | "0","+" -> Set.ofList ["0"]
-    | "+","-" -> Set.ofList ["-"]
-    | "+","0" -> Set.ofList ["0"]
-    | "+","+" -> Set.ofList ["+"]
-    | _       -> failwith("wrong sign detected")
+    | Neg,Neg -> Set.ofList [Pos]
+    | Neg,Zero -> Set.ofList [Zero]
+    | Neg,Pos -> Set.ofList [Neg]
+    | Zero,Neg -> Set.ofList [Zero]
+    | Zero,Zero -> Set.ofList [Zero]
+    | Zero,Pos -> Set.ofList [Zero]
+    | Pos,Neg -> Set.ofList [Neg]
+    | Pos,Zero -> Set.ofList [Zero]
+    | Pos,Pos -> Set.ofList [Pos]
 
 let modulo = function
-    | "-","-" -> Set.ofList ["-";"0"]
-    | "-","0" -> Set.empty
-    | "-","+" -> Set.ofList ["+";"0"]
-    | "0","-" -> Set.ofList ["0"]
-    | "0","0" -> Set.empty
-    | "0","+" -> Set.ofList ["0"]
-    | "+","-" -> Set.ofList ["0";"-"]
-    | "+","0" -> Set.empty
-    | "+","+" -> Set.ofList ["+";"0"]
-    | _       -> failwith("wrong sign detected")
+    | Neg,Neg -> Set.ofList [Neg;Zero]
+    | Neg,Zero -> Set.empty
+    | Neg,Pos -> Set.ofList [Pos;Zero]
+    | Zero,Neg -> Set.ofList [Zero]
+    | Zero,Zero -> Set.empty
+    | Zero,Pos -> Set.ofList [Zero]
+    | Pos,Neg -> Set.ofList [Zero;Neg]
+    | Pos,Zero -> Set.empty
+    | Pos,Pos -> Set.ofList [Pos;Zero]
 
 let minus = function
-    | "-","-" -> Set.ofList ["-"; "0"; "+"]
-    | "-","0" -> Set.ofList ["-"]
-    | "-","+" -> Set.ofList ["-"]
-    | "0","-" -> Set.ofList ["+"]
-    | "0","0" -> Set.ofList ["0"]
-    | "0","+" -> Set.ofList ["-"]
-    | "+","-" -> Set.ofList ["+"]
-    | "+","0" -> Set.ofList ["+"]
-    | "+","+" -> Set.ofList ["-"; "0"; "+"]
-    | _       -> failwith("wrong sign detected")
+    | Neg,Neg -> Set.ofList [Neg; Zero; Pos]
+    | Neg,Zero -> Set.ofList [Neg]
+    | Neg,Pos -> Set.ofList [Neg]
+    | Zero,Neg -> Set.ofList [Pos]
+    | Zero,Zero -> Set.ofList [Zero]
+    | Zero,Pos -> Set.ofList [Neg]
+    | Pos,Neg -> Set.ofList [Pos]
+    | Pos,Zero -> Set.ofList [Pos]
+    | Pos,Pos -> Set.ofList [Neg; Zero; Pos]
 
 let divide = function
-    | "-","-" -> Set.ofList ["+"]
-    | "-","0" -> Set.empty
-    | "-","+" -> Set.ofList ["-"]
-    | "0","-" -> Set.ofList ["0"]
-    | "0","0" -> Set.empty
-    | "0","+" -> Set.ofList ["0"]
-    | "+","-" -> Set.ofList ["-"]
-    | "+","0" -> Set.empty
-    | "+","+" -> Set.ofList ["+"]
-    | _       -> failwith("wrong sign detected")
+    | Neg,Neg -> Set.ofList [Pos]
+    | Neg,Zero -> Set.empty
+    | Neg,Pos -> Set.ofList [Neg]
+    | Zero,Neg -> Set.ofList [Zero]
+    | Zero,Zero -> Set.empty
+    | Zero,Pos -> Set.ofList [Zero]
+    | Pos,Neg -> Set.ofList [Neg]
+    | Pos,Zero -> Set.empty
+    | Pos,Pos -> Set.ofList [Pos]
 
 let less = function
-    | "-","-" -> Set.ofList [True; False]
-    | "-","0" -> Set.ofList [True]
-    | "-","+" -> Set.ofList [True]
-    | "0","-" -> Set.ofList [False]
-    | "0","0" -> Set.ofList [False]
-    | "0","+" -> Set.ofList [True]
-    | "+","-" -> Set.ofList [False]
-    | "+","0" -> Set.ofList [False]
-    | "+","+" -> Set.ofList [True; False]
-    | _       -> failwith("wrong sign detected") ;;
+    | Neg,Neg -> Set.ofList [True; False]
+    | Neg,Zero -> Set.ofList [True]
+    | Neg,Pos -> Set.ofList [True]
+    | Zero,Neg -> Set.ofList [False]
+    | Zero,Zero -> Set.ofList [False]
+    | Zero,Pos -> Set.ofList [True]
+    | Pos,Neg -> Set.ofList [False]
+    | Pos,Zero -> Set.ofList [False]
+    | Pos,Pos -> Set.ofList [True; False]
 
 let lessEq = function
-    | "-","-" -> Set.ofList [True; False]
-    | "-","0" -> Set.ofList [True]
-    | "-","+" -> Set.ofList [True]
-    | "0","-" -> Set.ofList [True]
-    | "0","0" -> Set.ofList [True]
-    | "0","+" -> Set.ofList [False]
-    | "+","-" -> Set.ofList [False]
-    | "+","0" -> Set.ofList [False]
-    | "+","+" -> Set.ofList [True; False]
-    | _       -> failwith("wrong sign detected") ;;
+    | Neg,Neg -> Set.ofList [True; False]
+    | Neg,Zero -> Set.ofList [True]
+    | Neg,Pos -> Set.ofList [True]
+    | Zero,Neg -> Set.ofList [True]
+    | Zero,Zero -> Set.ofList [True]
+    | Zero,Pos -> Set.ofList [False]
+    | Pos,Neg -> Set.ofList [False]
+    | Pos,Zero -> Set.ofList [False]
+    | Pos,Pos -> Set.ofList [True; False]
 
 let greater = function
-    | "-","-" -> Set.ofList [True; False]
-    | "-","0" -> Set.ofList [False]
-    | "-","+" -> Set.ofList [False]
-    | "0","-" -> Set.ofList [True]
-    | "0","0" -> Set.ofList [False]
-    | "0","+" -> Set.ofList [False]
-    | "+","-" -> Set.ofList [True]
-    | "+","0" -> Set.ofList [True]
-    | "+","+" -> Set.ofList [True; False]
-    | _       -> failwith("wrong sign detected") ;;
+    | Neg,Neg -> Set.ofList [True; False]
+    | Neg,Zero -> Set.ofList [False]
+    | Neg,Pos -> Set.ofList [False]
+    | Zero,Neg -> Set.ofList [True]
+    | Zero,Zero -> Set.ofList [False]
+    | Zero,Pos -> Set.ofList [False]
+    | Pos,Neg -> Set.ofList [True]
+    | Pos,Zero -> Set.ofList [True]
+    | Pos,Pos -> Set.ofList [True; False]
 
 let greaterEq = function
-    | "-","-" -> Set.ofList [True; False]
-    | "-","0" -> Set.ofList [False]
-    | "-","+" -> Set.ofList [False]
-    | "0","-" -> Set.ofList [True]
-    | "0","0" -> Set.ofList [True]
-    | "0","+" -> Set.ofList [False]
-    | "+","-" -> Set.ofList [True]
-    | "+","0" -> Set.ofList [True]
-    | "+","+" -> Set.ofList [True; False]
-    | _       -> failwith("wrong sign detected") ;;
+    | Neg,Neg -> Set.ofList [True; False]
+    | Neg,Zero -> Set.ofList [False]
+    | Neg,Pos -> Set.ofList [False]
+    | Zero,Neg -> Set.ofList [True]
+    | Zero,Zero -> Set.ofList [True]
+    | Zero,Pos -> Set.ofList [False]
+    | Pos,Neg -> Set.ofList [True]
+    | Pos,Zero -> Set.ofList [True]
+    | Pos,Pos -> Set.ofList [True; False]
 
 let equal = function
-    | "-","-" -> Set.ofList [True; False]
-    | "-","0" -> Set.ofList [False]
-    | "-","+" -> Set.ofList [False]
-    | "0","-" -> Set.ofList [False]
-    | "0","0" -> Set.ofList [True]
-    | "0","+" -> Set.ofList [False]
-    | "+","-" -> Set.ofList [False]
-    | "+","0" -> Set.ofList [False]
-    | "+","+" -> Set.ofList [True; False]
-    | _       -> failwith("wrong sign detected") ;;
+    | Neg,Neg -> Set.ofList [True; False]
+    | Neg,Zero -> Set.ofList [False]
+    | Neg,Pos -> Set.ofList [False]
+    | Zero,Neg -> Set.ofList [False]
+    | Zero,Zero -> Set.ofList [True]
+    | Zero,Pos -> Set.ofList [False]
+    | Pos,Neg -> Set.ofList [False]
+    | Pos,Zero -> Set.ofList [False]
+    | Pos,Pos -> Set.ofList [True; False]
 
 let notEqual = function
-    | "-","-" -> Set.ofList [True; False]
-    | "-","0" -> Set.ofList [True]
-    | "-","+" -> Set.ofList [True]
-    | "0","-" -> Set.ofList [True]
-    | "0","0" -> Set.ofList [False]
-    | "0","+" -> Set.ofList [True]
-    | "+","-" -> Set.ofList [True]
-    | "+","0" -> Set.ofList [True]
-    | "+","+" -> Set.ofList [True; False]
-    | _       -> failwith("wrong sign detected") ;;
+    | Neg,Neg -> Set.ofList [True; False]
+    | Neg,Zero -> Set.ofList [True]
+    | Neg,Pos -> Set.ofList [True]
+    | Zero,Neg -> Set.ofList [True]
+    | Zero,Zero -> Set.ofList [False]
+    | Zero,Pos -> Set.ofList [True]
+    | Pos,Neg -> Set.ofList [True]
+    | Pos,Zero -> Set.ofList [True]
+    | Pos,Pos -> Set.ofList [True; False]
 
 let _and = function
     | True,True -> Set.ofList [True]
