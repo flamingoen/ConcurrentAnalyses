@@ -1,6 +1,5 @@
-GuardedCommandParser.fsi
-GuardedCommandParser.fs
-GuardedCommandLexer.fs
+lexerParser/*.fs
+lexerParser/*.fsi
 
 results/*
 *.gv
