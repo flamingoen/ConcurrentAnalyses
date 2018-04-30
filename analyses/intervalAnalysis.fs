@@ -1,7 +1,6 @@
 module IntervalAnalysis
 
 open Defines
-open Policies
 open ConstraintAnalysis
 open ProgramGraphs
 
@@ -39,7 +38,7 @@ let ruleToInterval = function
 
 let exVal_I G p =
     let vars = (removeLocalVars (varsInGraph G)) + (channelsInGraph G)
-    let policyMap = List.fold (fun xs (v,r) ->
+    let policyMap = List.fold (fun xs (Policy(v,r)) ->
         match Map.tryFind v xs with
         | Some(i) -> Map.add v (i-(ruleToInterval r)) xs
         | None    -> Map.add v (ruleToInterval r) xs ) Map.empty p
@@ -47,8 +46,8 @@ let exVal_I G p =
         if Set.contains v vars then
             Set.add (v,i,Initial,Ø) xs
         else xs ) Ø policyMap
-    let exclVars = List.fold (fun xs (v,r) -> Set.add v xs ) Ø p
-    let eI = Set.fold (fun rst var -> (Set.ofList [(var,I(0,0),Initial,Ø)])+rst) polic (vars-exclVars)
+    let exclVars = List.fold (fun xs (Policy(v,r)) -> Set.add v xs ) Ø p
+    let eI = Set.fold (fun rst var -> (Set.ofList [(var,ob_I,Initial,Ø)])+rst) polic (vars-exclVars)
     printfn("%A") eI
     (eI,exVal_C)
 
@@ -210,7 +209,7 @@ let f_I splitInterval (Li,Lc) (Ss,Sc) (qs,a,qt,id) =
         (Ss , Sc')
 
 let p_I p (s,c) =
-    List.forall (fun (v,r) ->
+    List.forall (fun (Policy(v,r)) ->
         let rule = (ruleToInterval r)
         let exists = Set.fold (fun xs (v',i,o,c) -> v=v' || xs ) false s
         Set.fold (fun xs (v',i,o,c) -> v=v' && (Set.contains True (equal (i,rule)) ) || xs ) (not exists) s ) p

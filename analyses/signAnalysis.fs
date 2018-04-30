@@ -1,7 +1,6 @@
 module SignAnalysis
 
 open Defines
-open Policies
 open TablesSign
 open ConstraintAnalysis
 open ProgramGraphs
@@ -64,7 +63,7 @@ let Lcs G = ((Ø,(btm_C G)),((top_s G),Ø),order_CS)
 
 let exVal_CS G p =
     let vars = (removeLocalVars (varsInGraph G))+(channelsInGraph G)
-    let policyMap = List.fold (fun xs (v,r) ->
+    let policyMap = List.fold (fun xs (Policy(v,r)) ->
         match Map.tryFind v xs with
         | None -> Map.add v (ruleToSign r) xs
         | Some(s) when Set.isEmpty ( Set.intersect s (ruleToSign r) ) -> Map.add v ( Set.ofList [S_Undefined]) xs
@@ -72,7 +71,7 @@ let exVal_CS G p =
     let polic = Map.fold (fun xs v s ->
         if Set.contains v vars then Set.fold (fun xs' sign -> Set.add (v,sign,Initial,Ø) xs' ) xs s
         else xs ) Ø policyMap
-    let exclVars = List.fold (fun xs (v,r) -> Set.add v xs ) Ø p
+    let exclVars = List.fold (fun xs (Policy(v,r)) -> Set.add v xs ) Ø p
     let ex_s = Set.fold (fun rst var ->
         (Set.ofList [(var,Zero,Initial,Ø);(var,Pos,Initial,Ø);(var,Neg,Initial,Ø)])+rst ) polic (vars-exclVars)
     (ex_s,exVal_C)
@@ -98,7 +97,7 @@ let update x signs c state =
     ) rSet signs
 
 let p_s p (s,c) =
-    List.forall (fun (v,r) ->
+    List.forall (fun (Policy(v,r)) ->
         Set.fold (fun xs (v',s,o,c) -> v=v' && Set.contains s (ruleToSign r) || xs ) false s ) p
 
 let f_CS (Ls,Lc) (Ss,Sc) (qs,a,qt,id) =

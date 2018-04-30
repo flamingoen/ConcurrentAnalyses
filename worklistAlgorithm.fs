@@ -1,7 +1,6 @@
 module WorklistAlgorithm
 
 open Defines
-open Policies
 open ProgramGraphs
 open GraphViz
 

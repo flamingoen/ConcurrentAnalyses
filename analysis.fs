@@ -1,7 +1,6 @@
 module Analysis
 
 open Defines
-open Policies
 open ProgramGraphs
 open WorklistAlgorithm
 open BitVectorAnalyses

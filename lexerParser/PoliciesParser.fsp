@@ -1,0 +1,22 @@
+%{
+open Defines
+%}
+
+%token <int> INT
+%token <string> VAR
+%token GREATER LESS ODD EVEN PLUS MINUS IMPLY EQUAL EOF
+
+// start
+%start policy
+%type <Defines.policies> policy
+
+%%
+
+policy:
+    | rule           { [$1] }
+    | rule policy    { $1::$2 }
+
+rule:
+    | VAR EQUAL INT      { Policy($1,R_Eq($3)) }
+
+%%

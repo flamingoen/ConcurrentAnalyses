@@ -1,7 +1,6 @@
 module ParityAnalysis
 
 open Defines
-open Policies
 open ConstraintAnalysis
 open ProgramGraphs
 
@@ -75,11 +74,11 @@ let ruleToParity = function
 
 let exVal_p G p =
     let vars = (removeLocalVars (varsInGraph G))+(channelsInGraph G)
-    let polic = List.fold (fun xs (v,r) ->
+    let polic = List.fold (fun xs (Policy(v,r)) ->
         if Set.contains v vars then
             Set.fold (fun xs' sign -> Set.add (v,sign,Initial,Ø) xs' ) xs (ruleToParity r)
         else xs ) Ø p
-    let exclVars = List.fold (fun xs (v,r) -> Set.add v xs ) Ø p
+    let exclVars = List.fold (fun xs (Policy(v,r)) -> Set.add v xs ) Ø p
     let ex_p = Set.fold (fun rst var ->
         (Set.ofList [(var,Even,Initial,Ø);(var,Odd,Initial,Ø)])+rst) polic (vars-exclVars)
     (ex_p,exVal_C)
@@ -105,7 +104,7 @@ let update x p c state =
     ) rSet p
 
 let p_p p (s,c) =
-    List.forall (fun (v,r) ->
+    List.forall (fun (Policy(v,r)) ->
         Set.fold (fun xs (v',s,o,c) -> v=v' && Set.contains s (ruleToParity r) || xs ) false s ) p
 
 let f_p (Lp,Lc) (Sp,Sc) (qs,a,qt,id) =

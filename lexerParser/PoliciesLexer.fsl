@@ -1,0 +1,30 @@
+{
+module PoliciesLexer
+
+open System
+open PoliciesParser
+open Microsoft.FSharp.Text.Lexing
+open System.Text
+}
+
+let char        = ['a'-'z' 'A'-'Z']
+let digit       = ['0'-'9']
+let whitespace  = [' ' '\t']
+let newline     = "\n\r" | '\n' | '\r'
+let id          = char(char|digit|['_'])*
+let int         = '-'?digit+
+
+rule tokenize = parse
+| whitespace    { tokenize lexbuf }
+| newline       { lexbuf.EndPos <- lexbuf.EndPos.NextLine; tokenize lexbuf; }
+| "+"           { PLUS }
+| "-"           { MINUS }
+| "odd"         { ODD }
+| "even"        { EVEN }
+| "->"          { IMPLY }
+| "="           { EQUAL }
+| "<"           { LESS }
+| ">"           { GREATER }
+| int           { INT(Int32.Parse(LexBuffer<_>.LexemeString lexbuf)) }
+| id            { VAR(LexBuffer<_>.LexemeString lexbuf) }
+| eof           { EOF }
