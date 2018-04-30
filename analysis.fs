@@ -49,12 +49,17 @@ let liveVariables G ex =
         ) res
     printFooter G
 
-let rec condenseState toString state = function
+let rec condenseState err toString state = function
     | []        -> Set.empty
     | var::xs   ->
         let varSet,extract = Set.partition (fun (x,signs,o,cstr) -> x=var ) state
         let conVarSet = Set.fold (fun rst (x,sign,o,cstr) -> Set.add (x,sign) rst ) Ø varSet
-        Set.add (var,(Set.foldBack (fun (x,s) rst -> if rst="" then (toString s)+rst else (toString s)+","+rst ) conVarSet  "")) (condenseState toString extract xs)
+        Set.add (var,(Set.foldBack (fun (x,s) rst ->
+            match s with
+            | e when e=err      -> "err."
+            | _ when rst="err." -> rst
+            | _ when rst=""     -> (toString s)+rst
+            | _                 -> (toString s)+","+rst ) conVarSet  "")) (condenseState err toString extract xs)
 let detectionOfSignsAnalysis G p ex =
     printfn"\nDetection of signs analysis"
     let f = f_CS ((Ls G),(Lc G))
@@ -62,7 +67,7 @@ let detectionOfSignsAnalysis G p ex =
     let (res,sat) = MFP (Lcs G) G (E_initial ex) (exVal_CS G p) f (con_CSg (Lc G)) con_CSa policySatisfied
     printfn "\n"
     let colRes = Map.fold (fun rst q (s,c) ->
-        Map.add q ( condenseState signToString s (Set.toList (varsIn s)) , c) rst ) Map.empty res
+        Map.add q ( condenseState S_Undefined signToString s (Set.toList (varsIn s)) , c) rst ) Map.empty res
     Map.iter (fun q (state,c) ->
         printf("q%-10A\t") q
         Set.iter (fun (x,s) -> printf("%5s-> %-5s " ) x s) state
@@ -101,7 +106,7 @@ let parityAnalysis G p ex =
     let (res,sat) = MFP (Lpc G) G (E_initial ex) (exVal_p G p) f (con_pg (Lcp G)) con_pa policySatisfied
     printfn "\n"
     let colRes = Map.fold (fun rst q (s,c) ->
-        Map.add q ( condenseState parityToString s (Set.toList (varsIn s)) , c) rst ) Map.empty res
+        Map.add q ( condenseState P_Undefined parityToString s (Set.toList (varsIn s)) , c) rst ) Map.empty res
     Map.iter (fun q (state,c) ->
         printf("q%-10A\t") q
         Set.iter (fun (x,s) -> printf("%5s-> %-5A " ) x s) state

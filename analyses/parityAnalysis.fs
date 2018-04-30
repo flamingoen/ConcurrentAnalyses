@@ -12,26 +12,31 @@ let plus = function
     | Odd,Even  -> Set.ofList [Odd]
     | Even,Odd  -> Set.ofList [Odd]
     | Even,Even -> Set.ofList [Even]
+    | _         -> Set.ofList [P_Undefined]
 let minus  = function
     | Odd,Odd   -> Set.ofList [Even]
     | Odd,Even  -> Set.ofList [Odd]
     | Even,Odd  -> Set.ofList [Odd]
     | Even,Even -> Set.ofList [Even]
+    | _         -> Set.ofList [P_Undefined]
 let multi = function
     | Even,Even -> Set.ofList [Even]
     | Odd,Even  -> Set.ofList [Even]
     | Even,Odd  -> Set.ofList [Even]
     | Odd,Odd   -> Set.ofList [Odd]
+    | _         -> Set.ofList [P_Undefined]
 let divide = function
     | Even,Even -> Set.ofList [Even; Odd]
     | Odd,Even  -> Set.ofList [Even; Odd]
     | Even,Odd  -> Set.ofList [Even; Odd]
     | Odd,Odd   -> Set.ofList [Even; Odd]
+    | _         -> Set.ofList [P_Undefined]
 let modulo = function
     | Even,Even -> Set.ofList [Even]
     | Odd,Even  -> Set.ofList [Even]
     | Even,Odd  -> Set.ofList [Odd]
     | Odd,Odd   -> Set.ofList [Odd]
+    | _         -> Set.ofList [P_Undefined]
 
 let rec Ap state = function
     | Node(X(x),_)            -> parityOf x state
@@ -125,3 +130,4 @@ let f_p (Lp,Lc) (Sp,Sc) (qs,a,qt,id) =
 let parityToString = function
     | Odd -> "o"
     | Even -> "e"
+    | P_Undefined -> "err."

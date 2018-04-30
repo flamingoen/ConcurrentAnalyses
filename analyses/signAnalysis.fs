@@ -40,6 +40,15 @@ let ruleToSign = function
     | R_Pl -> Set.ofList [Pos]
     | R_Mi -> Set.ofList [Neg]
     | R_Zr -> Set.ofList [Zero]
+    | R_Grt(n) -> if n>=0 then Set.ofList [Pos] else
+                    if n=(-1) then Set.ofList [Zero;Pos] else
+                    Set.ofList [Pos;Neg;Zero]
+    | R_Lt(n)  -> if n<=0 then Set.ofList [Neg] else
+                    if n=1 then Set.ofList [Zero;Neg] else
+                    Set.ofList [Pos;Neg;Zero]
+    | R_Eq(n) when n>0 -> Set.ofList [Pos]
+    | R_Eq(n) when n=0 -> Set.ofList [Zero]
+    | R_Eq(n) when n<0 -> Set.ofList [Neg]
     | _    -> Set.ofList [Pos;Neg;Zero]
 
 let top_s G =
@@ -55,10 +64,14 @@ let Lcs G = ((Ø,(btm_C G)),((top_s G),Ø),order_CS)
 
 let exVal_CS G p =
     let vars = (removeLocalVars (varsInGraph G))+(channelsInGraph G)
-    let polic = List.fold (fun xs (v,r) ->
-        if Set.contains v vars then
-            Set.fold (fun xs' sign -> Set.add (v,sign,Initial,Ø) xs' ) xs (ruleToSign r)
-        else xs ) Ø p
+    let policyMap = List.fold (fun xs (v,r) ->
+        match Map.tryFind v xs with
+        | None -> Map.add v (ruleToSign r) xs
+        | Some(s) when Set.isEmpty ( Set.intersect s (ruleToSign r) ) -> Map.add v ( Set.ofList [S_Undefined]) xs
+        | Some(s) ->  Map.add v ( Set.intersect s (ruleToSign r) ) xs ) Map.empty p
+    let polic = Map.fold (fun xs v s ->
+        if Set.contains v vars then Set.fold (fun xs' sign -> Set.add (v,sign,Initial,Ø) xs' ) xs s
+        else xs ) Ø policyMap
     let exclVars = List.fold (fun xs (v,r) -> Set.add v xs ) Ø p
     let ex_s = Set.fold (fun rst var ->
         (Set.ofList [(var,Zero,Initial,Ø);(var,Pos,Initial,Ø);(var,Neg,Initial,Ø)])+rst ) polic (vars-exclVars)
@@ -113,3 +126,4 @@ let signToString = function
     | Pos  -> "+"
     | Neg  -> "-"
     | Zero -> "0"
+    | S_Undefined -> "Err."

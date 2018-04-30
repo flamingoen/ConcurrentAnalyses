@@ -39,10 +39,14 @@ let ruleToInterval = function
 
 let exVal_I G p =
     let vars = (removeLocalVars (varsInGraph G)) + (channelsInGraph G)
-    let polic = List.fold (fun xs (v,r) ->
+    let policyMap = List.fold (fun xs (v,r) ->
+        match Map.tryFind v xs with
+        | Some(i) -> Map.add v (i-(ruleToInterval r)) xs
+        | None    -> Map.add v (ruleToInterval r) xs ) Map.empty p
+    let polic = Map.fold (fun xs v i ->
         if Set.contains v vars then
-            Set.add (v,(ruleToInterval r),Initial,Ø) xs
-        else xs ) Ø p
+            Set.add (v,i,Initial,Ø) xs
+        else xs ) Ø policyMap
     let exclVars = List.fold (fun xs (v,r) -> Set.add v xs ) Ø p
     let eI = Set.fold (fun rst var -> (Set.ofList [(var,I(0,0),Initial,Ø)])+rst) polic (vars-exclVars)
     printfn("%A") eI

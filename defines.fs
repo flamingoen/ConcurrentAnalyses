@@ -58,8 +58,8 @@ let magic s1 s2 op = Set.fold (fun rst e1 ->
 let Ø = Set.empty
 
 // ####### ANALYSIS TYPES #######
-type sign = Pos | Neg | Zero
-type parity = Even | Odd
+type sign = Pos | Neg | Zero | S_Undefined
+type parity = Even | Odd | P_Undefined
 type interval =
     I of (int*int) | Undefined | Empty
     static member (+) (e1:interval,e2:interval) =
@@ -75,4 +75,12 @@ type interval =
         | (_,Undefined) -> Undefined
         | (Empty,i)     -> i
         | (i,Empty)     -> i
+        | (I(mx,mn),I(mx',mn')) when mx'<mn && mn'<mn -> Undefined
+        | (I(mx,mn),I(mx',mn')) when mx'>mx && mn'>mx -> Undefined
         | (I(mx,mn),I(mx',mn')) -> I((min mx mx'),(max mn mn'))
+
+
+
+
+
+//
