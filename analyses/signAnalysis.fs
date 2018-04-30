@@ -36,8 +36,14 @@ let rec Bs state = function
     | Node(Land,b1::b2::_)  -> magic (Bs state b1) (Bs state b2) _and
     | Node(a,_)             -> failwith("In Bs: unknown match for action "+(string a))
 
+let ruleToSign = function
+    | R_Pl -> Set.ofList [Pos]
+    | R_Mi -> Set.ofList [Neg]
+    | R_Zr -> Set.ofList [Zero]
+    | _    -> Set.ofList [Pos;Neg;Zero]
+
 let top_s G =
-    let vars = varsInGraph G
+    let vars = (removeLocalVars (varsInGraph G))+(channelsInGraph G)
     Set.fold (fun rst var -> if isLocal var then (Set.ofList [(var,Zero,Local,Ø);(var,Pos,Local,Ø);(var,Neg,Local,Ø)])+rst else (Set.ofList [(var,Zero,Global,Ø);(var,Pos,Global,Ø);(var,Neg,Global,Ø)])+rst ) Ø vars
 
 let Ls G =
@@ -47,10 +53,15 @@ let Ls G =
 let order_CS (s1,c1) (s2,c2) = ((Set.union s1 s2),(Set.intersect c1 c2))
 let Lcs G = ((Ø,(btm_C G)),((top_s G),Ø),order_CS)
 
-let exVal_CS G =
-    let vars = removeLocalVars (varsInGraph G)
+let exVal_CS G p =
+    let vars = (removeLocalVars (varsInGraph G))+(channelsInGraph G)
+    let polic = List.fold (fun xs (v,r) ->
+        if Set.contains v vars then
+            Set.fold (fun xs' sign -> Set.add (v,sign,Initial,Ø) xs' ) xs (ruleToSign r)
+        else xs ) Ø p
+    let exclVars = List.fold (fun xs (v,r) -> Set.add v xs ) Ø p
     let ex_s = Set.fold (fun rst var ->
-        (Set.ofList [(var,Zero,Initial,Ø);(var,Pos,Initial,Ø);(var,Neg,Initial,Ø)])+rst) Ø vars
+        (Set.ofList [(var,Zero,Initial,Ø);(var,Pos,Initial,Ø);(var,Neg,Initial,Ø)])+rst ) polic (vars-exclVars)
     (ex_s,exVal_C)
 
 let con_CSg Lc id (s1,c1) (s2,c2) c =
@@ -72,12 +83,6 @@ let update x signs c state =
         if isLocal x then Set.add (x,sign,Local,c) rst
         else Set.add (x,sign,Global,c) rst
     ) rSet signs
-
-let ruleToSign = function
-    | R_Pl -> Set.ofList [Pos]
-    | R_Mi -> Set.ofList [Neg]
-    | R_Zr -> Set.ofList [Zero]
-    | _    -> Set.ofList [Pos;Neg;Zero]
 
 let p_s p (s,c) =
     List.forall (fun (v,r) ->

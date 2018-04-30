@@ -59,7 +59,7 @@ let detectionOfSignsAnalysis G p ex =
     printfn"\nDetection of signs analysis"
     let f = f_CS ((Ls G),(Lc G))
     let policySatisfied = p_s p
-    let (res,sat) = MFP (Lcs G) G (E_initial ex) (exVal_CS G) f (con_CSg (Lc G)) con_CSa policySatisfied
+    let (res,sat) = MFP (Lcs G) G (E_initial ex) (exVal_CS G p) f (con_CSg (Lc G)) con_CSa policySatisfied
     printfn "\n"
     let colRes = Map.fold (fun rst q (s,c) ->
         Map.add q ( condenseState signToString s (Set.toList (varsIn s)) , c) rst ) Map.empty res
@@ -77,28 +77,18 @@ let rec mergeIntervals state = function
         let varSet,extract = Set.partition (fun (x,signs,o,cstr) -> x=var ) state
         let conVarSet = Set.fold (fun rst (v,i,o,c) -> Set.add (v,i) rst ) Ø varSet
         Set.add (var,(Set.fold (fun rst (v,i) -> rst+i ) Empty conVarSet)) (mergeIntervals extract xs)
-let intervalToString i =
-    match i with
-    | Undefined  -> "Err"
-    | Empty      -> "?"
-    | I(max,min) when max=MAX && min=MIN -> "( -∞ : ∞ )"
-    | I(max,min) when max=MAX            -> "( "+(string min)+" : ∞ )"
-    | I(max,min) when min=MIN            -> "( ∞ : "+(string max)+" )"
-    | I(max,min)                         -> "( "+(string min)+" : "+(string max)+" )"
 let intervalAnalysis G p ex =
     printfn"\nInterval analysis"
     let Li = ((btm_I G),(top_I G),order_I)
     let policySatisfied = p_I p
-    let (res,sat) = MFP (L_I G) G (E_initial ex) (exVal_I G) (f_I (Li,(Lc G))) (con_Ig (Lci ob_I G)) con_Ia policySatisfied
+    let (res,sat) = MFP (L_I G) G (E_initial ex) (exVal_I G p) (f_I MAX (Li,(Lc G))) (con_Ig (Lci ob_I G)) con_Ia policySatisfied
     let conRes = Map.fold (fun rst q (s,c) ->
         Map.add q ( mergeIntervals s (Set.toList (varsIn s)) , c) rst ) Map.empty res
     printfn "\n"
     Map.iter (fun q (state,c) ->
         printf("q%-5A\t") q
         Set.iter (fun (x,i) -> printf("%5s-> %-12s" ) x (intervalToString i) ) state
-        printf("\t[")
-        Set.iter (fun e -> printf("%A") e ) c
-        printfn("] ")
+        printfn""
         ) conRes
     printFooter G
     printPolicy p sat
@@ -108,7 +98,7 @@ let parityAnalysis G p ex =
     printfn"\n Parity analysis"
     let f = f_p ((Lp G),(Lc G))
     let policySatisfied = p_p p
-    let (res,sat) = MFP (Lpc G) G (E_initial ex) (exVal_p G) f (con_pg (Lcp G)) con_pa policySatisfied
+    let (res,sat) = MFP (Lpc G) G (E_initial ex) (exVal_p G p) f (con_pg (Lcp G)) con_pa policySatisfied
     printfn "\n"
     let colRes = Map.fold (fun rst q (s,c) ->
         Map.add q ( condenseState parityToString s (Set.toList (varsIn s)) , c) rst ) Map.empty res

@@ -69,3 +69,10 @@ type interval =
         | (Empty,i)     -> i
         | (i,Empty)     -> i
         | (I(mx,mn),I(mx',mn')) -> I((max mx mx'),(min mn mn'))
+    static member (-) (e1:interval,e2:interval) =
+        match (e1,e2) with
+        | (Undefined,_) -> Undefined
+        | (_,Undefined) -> Undefined
+        | (Empty,i)     -> i
+        | (i,Empty)     -> i
+        | (I(mx,mn),I(mx',mn')) -> I((min mx mx'),(max mn mn'))

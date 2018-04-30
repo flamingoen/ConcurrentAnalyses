@@ -63,10 +63,20 @@ let order_p (s1,c1) (s2,c2) = ((Set.union s1 s2),(Set.intersect c1 c2))
 
 let Lpc G = ((Ø,(btm_Cp G)),((top_p G),Ø),order_p)
 
-let exVal_p G =
-    let vars = removeLocalVars (varsInGraph G)
+let ruleToParity = function
+    | R_Even -> Set.ofList [Even]
+    | R_Odd  -> Set.ofList [Odd]
+    | _      -> Set.ofList [Even; Odd]
+
+let exVal_p G p =
+    let vars = (removeLocalVars (varsInGraph G))+(channelsInGraph G)
+    let polic = List.fold (fun xs (v,r) ->
+        if Set.contains v vars then
+            Set.fold (fun xs' sign -> Set.add (v,sign,Initial,Ø) xs' ) xs (ruleToParity r)
+        else xs ) Ø p
+    let exclVars = List.fold (fun xs (v,r) -> Set.add v xs ) Ø p
     let ex_p = Set.fold (fun rst var ->
-        (Set.ofList [(var,Even,Initial,Ø);(var,Odd,Initial,Ø)])+rst) Ø vars
+        (Set.ofList [(var,Even,Initial,Ø);(var,Odd,Initial,Ø)])+rst) polic (vars-exclVars)
     (ex_p,exVal_C)
 
 let con_pg Lc id (s1,c1) (s2,c2) c =
@@ -88,11 +98,6 @@ let update x p c state =
         if isLocal x then Set.add (x,parity,Local,c) rst
         else Set.add (x,parity,Global,c) rst
     ) rSet p
-
-let ruleToParity = function
-    | R_Even -> Set.ofList [Even]
-    | R_Odd  -> Set.ofList [Odd]
-    | _      -> Set.ofList [Even; Odd]
 
 let p_p p (s,c) =
     List.forall (fun (v,r) ->

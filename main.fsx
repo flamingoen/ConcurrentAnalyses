@@ -36,9 +36,9 @@ stopWatch.Stop()
 printfn "Open time:\t%f ms" stopWatch.Elapsed.TotalMilliseconds
 
 let program = multiplex
-let analysisType = DOS
+let analysisType = DOI
 open Policies
-let policy = [("ch",R_Even)]
+let policy = [("in1",R_Eq(10))]
 
 stopWatch.Restart()
 let syntaxTree =
@@ -46,32 +46,28 @@ let syntaxTree =
     with e -> failwith ("could not parse program:\n"+program)
 
 let (graph,ex) = ( pgGen syntaxTree )
-let (G,e) = (normalizeGraph graph ex)
-let (graphProduct,exValProduct) = productGraph G e
+let (G,E) = (normalizeGraph graph ex)
+let (graphProduct,exValProduct) = productGraph G E
 printfn "Compile time:\t%f ms" stopWatch.Elapsed.TotalMilliseconds
 
 // GRAPHVIZ
 stopWatch.Restart()
-makeGraph G e
+makeGraph G E
 //makeProductGraph graphProduct e
 printfn "Graphviz:\t%f ms" stopWatch.Elapsed.TotalMilliseconds
 
 stopWatch.Restart()
-let run = function
+let run g e p = function
     | RD  ->
-        reachingDefinition G e -1
+        reachingDefinition g e -1
     | LV  ->
-        liveVariables G e
+        liveVariables g e
     | DOS ->
-        detectionOfSignsAnalysis G policy e
+        detectionOfSignsAnalysis g p e
     | DOI ->
-        intervalAnalysis G policy e
+        intervalAnalysis g p e
     | PAR ->
-        parityAnalysis G policy e
+        parityAnalysis g p e
 
-run analysisType
+run G E policy analysisType
 printfn "Analysis time: %f ms" stopWatch.Elapsed.TotalMilliseconds
-
-//reachingDefinition graphProduct exValProduct (Set.ofList [-1])
-//liveVariables graphProduct exValProduct
-//detectionOfSignsAnalysis graphProduct exValProduct

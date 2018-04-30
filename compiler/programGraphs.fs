@@ -81,13 +81,18 @@ let rec varsInA = function
     | Node(X(x),_) -> Set.ofList [x]
     | Node(_,lst) -> List.fold (fun rst a -> rst + (varsInA a)) Set.empty lst
 
-let varsInGraph graph  = List.fold (fun rst (qs,a,qt,id) -> rst + (varsInA a)) Set.empty graph
-let edgesFrom q graph  = Set.filter (fun (qs,a,qt,id) -> qs=q ) graph
-let edgesTo q graph    = Set.filter (fun (qs,a,qt,id) -> qt=q) graph
-let endNodes graph     = Set.fold (fun rst (qs,a,qt,id) -> Set.add qt rst) Set.empty graph
-let startNodes graph   = Set.fold (fun rst (qs,a,qt,id) -> Set.add qs rst) Set.empty graph
-let rec allNodes graph = List.fold (fun rst (qs,a,qt,id) -> Set.add qt (Set.add qs rst) ) Set.empty graph
-let isLocal var        = String.exists (fun c -> c='}') var
+let rec chansInA = function
+    | Node(C(ch),_) -> Set.ofList [ch]
+    | Node(_,lst)   -> List.fold (fun rst a -> rst + (chansInA a)) Set.empty lst
+
+let varsInGraph graph     = List.fold (fun rst (qs,a,qt,id) -> rst + (varsInA a)) Ø graph
+let channelsInGraph graph = List.fold (fun rst (qs,a,qt,id) -> rst + (chansInA a)) Ø graph
+let edgesFrom q graph     = Set.filter (fun (qs,a,qt,id) -> qs=q ) graph
+let edgesTo q graph       = Set.filter (fun (qs,a,qt,id) -> qt=q) graph
+let endNodes graph        = Set.fold (fun rst (qs,a,qt,id) -> Set.add qt rst) Set.empty graph
+let startNodes graph      = Set.fold (fun rst (qs,a,qt,id) -> Set.add qs rst) Set.empty graph
+let rec allNodes graph    = List.fold (fun rst (qs,a,qt,id) -> Set.add qt (Set.add qs rst) ) Set.empty graph
+let isLocal var           = String.exists (fun c -> c='}') var
 
 let removeLocalVars vars =
     Set.fold (fun rst var ->

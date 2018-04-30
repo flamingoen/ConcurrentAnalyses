@@ -11,8 +11,10 @@ let MIN = -100
 let ob_I = I(MAX,MIN)
 let lb_I = Empty
 
-let btm_I G = Set.fold (fun rst var ->
-    if isLocal var then Set.add (var,lb_I,Local,Ø) rst else Set.add (var,lb_I,Global,Ø) rst ) Ø (varsInGraph G)
+let btm_I G =
+    let vars = varsInGraph G
+    let chans = channelsInGraph G
+    Set.fold (fun rst var -> if isLocal var then Set.add (var,lb_I,Local,Ø) rst else Set.add (var,lb_I,Global,Ø) rst ) Ø (vars)
 let top_I G = Set.fold (fun rst var ->
     if isLocal var then Set.add (var,ob_I,Local,Ø) rst else Set.add (var,ob_I,Global,Ø) rst ) Ø (varsInGraph G)
 let order_I s1 s2 =
@@ -26,9 +28,24 @@ let order_I s1 s2 =
 let order_IC (i1,c1) (i2,c2) = ((order_I i1 i2),(Set.intersect c1 c2))
 let L_I G = (((btm_I G),(btm_Ci G ob_I)),((top_I G),Ø),order_IC)
 
-let exVal_I G =
-    let vars = removeLocalVars (varsInGraph G)
-    let eI = Set.fold (fun rst var -> (Set.ofList [(var,ob_I,Initial,Ø)])+rst) Ø vars
+let ruleToInterval = function
+    | R_Pl     -> I(MAX,(max 1 MIN))
+    | R_Mi     -> I((min -1 MAX),MIN)
+    | R_Zr     -> I(0,0)
+    | R_Grt(n) -> I( MAX , (min (max (n+1) MIN) MAX) )
+    | R_Lt(n)  -> I( (max (min (n-1) MAX) MIN) , MIN )
+    | R_Eq(n)  -> I(n,n)
+    | _        -> ob_I
+
+let exVal_I G p =
+    let vars = (removeLocalVars (varsInGraph G)) + (channelsInGraph G)
+    let polic = List.fold (fun xs (v,r) ->
+        if Set.contains v vars then
+            Set.add (v,(ruleToInterval r),Initial,Ø) xs
+        else xs ) Ø p
+    let exclVars = List.fold (fun xs (v,r) -> Set.add v xs ) Ø p
+    let eI = Set.fold (fun rst var -> (Set.ofList [(var,I(0,0),Initial,Ø)])+rst) polic (vars-exclVars)
+    printfn("%A") eI
     (eI,exVal_C)
 
 let con_Ig Lc id (s1,c1) (s2,c2) c =
@@ -47,12 +64,12 @@ let con_Ia id (s1,c1) (s2,c2) c =
 let plus = function
     | (Undefined,_)         -> Undefined
     | (_,Undefined)         -> Undefined
-    | (I(mx,mn),I(mx',mn')) -> I( (min (mx+mx') MAX ),(max (mn+mn') MIN) )
+    | (I(mx,mn),I(mx',mn')) -> I( (min (mx+mx') MAX ), (max (mn+mn') MIN) )
     | (_,_)                 -> Empty
 let minus  = function
     | (Undefined,_)         -> Undefined
     | (_,Undefined)         -> Undefined
-    | (I(mx,mn),I(mx',mn')) -> I( (min (mx+mn') MAX ),(max (mn+mx') MIN ) )
+    | (I(mx,mn),I(mx',mn')) -> I( (min (mx+mn') MAX ), (max (mn+mx') MIN ) )
     | (_,_)                 -> Empty
 let multi = function
     | (Undefined,_)         -> Undefined
@@ -68,8 +85,8 @@ let divide = function
     | (_,I(0,0))            -> Undefined
     | (I(0,0),_)            -> I(0,0)
     | (I(mx,mn),I(mx',mn')) ->
-        let first = min (max (max (mx/mn') (mx/mx') ) (max (mn/mx') (mn/mn') )) MAX
-        let second = max (min (min (mx/mn') (mx/mx') ) (min (mn/mx') (mn/mn') )) MIN
+        let first = if mx=MAX || mx'=MAX then MAX else min (max (max (mx/mn') (mx/mx') ) (max (mn/mx') (mn/mn') )) MAX
+        let second = if mn=MIN || mn'=MIN then MIN else max (min (min (mx/mn') (mx/mx') ) (min (mn/mx') (mn/mn') )) MIN
         I(first,second)
     | (_,_)                 -> Empty
 let modulo = function
@@ -78,8 +95,8 @@ let modulo = function
     | (_,I(0,0))            -> Undefined
     | (I(0,0),_)            -> I(0,0)
     | (I(mx,mn),I(mx',mn')) ->
-        let first = min (max (max (mx%mn') (mx%mx') ) (max (mn%mx') (mn%mn') )) MAX
-        let second = max (min (min (mx%mn') (mx%mx') ) (min (mn%mx') (mn%mn') )) MIN
+        let first = if mx=MAX || mx'=MAX then MAX else min (max (max (mx%mn') (mx%mx') ) (max (mn%mx') (mn%mn') )) MAX
+        let second = if mn=MIN || mn'=MIN then MIN else max (min (min (mx%mn') (mx%mx') ) (min (mn%mx') (mn%mn') )) MIN
         I(first,second)
     | (_,_)                 -> Empty
 let greater = function
@@ -158,15 +175,15 @@ let update x interval c state =
     if isLocal x then Set.add (x,interval,Local,c) rSet
     else Set.add (x,interval,Global,c) rSet
 
-let splitIntervalSet s = Set.fold (fun rst (v,i,o,c) ->
+let splitIntervalSet s inter = Set.fold (fun rst (v,i,o,c) ->
     match i with
-    | I(max,min) -> (List.fold (fun rst' j -> Set.add (v,I(j,j),o,c) rst' ) Ø [min .. max])+rst
+    | I(mx,mn) -> (List.fold (fun rst' j -> Set.add (v,I((min (j+inter) mx),j),o,c) rst' ) Ø [mn ..inter.. mx])+rst
     | _          -> Set.add (v,i,o,c) rst ) Ø s
 
 let mergeIntervalSet s = Set.fold (fun rst e -> order_I (Set.ofList [e]) rst) Ø s
 
-let f_I (Li,Lc) (Ss,Sc) (qs,a,qt,id) =
-    let Sc' = f_C B_I Li Lc (splitIntervalSet Ss) Sc (qs,a,qt,id)
+let f_I splitInterval (Li,Lc) (Ss,Sc) (qs,a,qt,id) =
+    let Sc' = f_C B_I Li Lc (splitIntervalSet Ss splitInterval) Sc (qs,a,qt,id)
     match a with
     | Node( Assign, Node(X(x),_)::fu::[] )  ->
         (update x (A_I Ss fu) Ø Ss , Sc')
@@ -183,18 +200,24 @@ let f_I (Li,Lc) (Ss,Sc) (qs,a,qt,id) =
     | Node( Recv,   ch::Node(A(ar),l)::xs)  ->
         (update ar ((A_I Ss ch)+(A_I Ss (Node(A(ar),l)))) Ø Ss , Sc')
     | Node( b, _ ) when isBoolOp b          ->
-        let Ss' = mergeIntervalSet (boolFilter B_I a (splitIntervalSet Ss))
+        let Ss' = mergeIntervalSet (boolFilter B_I a (splitIntervalSet Ss splitInterval))
         (Ss',Sc')
     | _ ->
         (Ss , Sc')
 
-let ruleToInterval = function
-    | R_Pl -> I(MAX,(max 1 MIN))
-    | R_Mi -> I((min -1 MAX),MIN)
-    | R_Zr -> I(0,0)
-    | _    -> ob_I
-
 let p_I p (s,c) =
     List.forall (fun (v,r) ->
         let rule = (ruleToInterval r)
-        Set.fold (fun xs (v',i,o,c) -> v=v' && (Set.contains True (equal (i,rule)) ) && not(i=Empty) || xs ) false s ) p
+        let exists = Set.fold (fun xs (v',i,o,c) -> v=v' || xs ) false s
+        Set.fold (fun xs (v',i,o,c) -> v=v' && (Set.contains True (equal (i,rule)) ) || xs ) (not exists) s ) p
+
+// (Set.contains True (equal (i,rule)) )
+// (rule+i = rule)
+
+let intervalToString = function
+    | Undefined  -> "Err"
+    | Empty      -> "?"
+    | I(max,min) when max=MAX && min=MIN -> "( -∞ : ∞ )"
+    | I(max,min) when max=MAX            -> "( "+(string min)+" : ∞ )"
+    | I(max,min) when min=MIN            -> "( -∞ : "+(string max)+" )"
+    | I(max,min)                         -> "( "+(string min)+" : "+(string max)+" )"
