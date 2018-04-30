@@ -17,6 +17,12 @@ policy:
     | rule policy    { $1::$2 }
 
 rule:
-    | VAR EQUAL INT      { Policy($1,R_Eq($3)) }
+    | VAR EQUAL INT   { Policy($1,R_Eq($3)) }
+    | VAR LESS INT    { Policy($1,R_Lt($3)) }
+    | VAR GREATER INT { Policy($1,R_Grt($3)) }
+    | VAR EQUAL PLUS  { Policy($1,R_Pl) }
+    | VAR EQUAL MINUS { Policy($1,R_Mi) }
+    | VAR IMPLY ODD   { Policy($1,R_Odd) }
+    | VAR IMPLY EVEN  { Policy($1,R_Even) }
 
 %%
