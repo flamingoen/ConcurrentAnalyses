@@ -15,6 +15,7 @@ open Defines
 policy:
     | rule           { [$1] }
     | rule policy    { $1::$2 }
+    | EOF            { [] }
 
 rule:
     | VAR EQUAL INT   { Policy($1,R_Eq($3)) }

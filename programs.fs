@@ -110,39 +110,16 @@ rap
 
 let multiplex = "
 par
-    in1!10
-[]
-    in2!-10
-[]
     var x;
-    if true -> in1?x; skip
-    [] true -> in2?x; x:=x- 1; skip
+    if true -> in1?x
+    [] true -> in2?x; x:=x- 1
     fi;
-    skip;
     ch!x*2
 []
     var z;
     ch?z;
     if z%2=0 -> out!z/2
-    [] z%2=1 -> out!z/2- 1
-    fi
-rap
-"
-
-let temp = "
-par
-    in1!1
-[]
-    in2!-1
-[]
-    var x;
-    if true -> in1?x; ch!2*x
-    [] true -> in2?x; ch!2*x-1
-    fi
-[]
-    var z;
-    if z%2=0 -> out!z/2
-    [] z%2=1 -> out!z/2
+    [] z%2=1 -> z:=z/2; out!z+1
     fi
 rap
 "
@@ -174,4 +151,16 @@ let fibonachi = "
         k := k + 1
     od;
     res := j
+"
+
+let shifter = "
+par
+    loop true ->
+        if x=0 -> x := 1 fi
+    pool
+[]
+    loop true ->
+        if x=1 -> x := 0 fi
+    pool
+rap
 "

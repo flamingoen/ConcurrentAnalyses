@@ -11,7 +11,7 @@ let ob_I = I(MAX,MIN)
 let lb_I = Empty
 
 let btm_I G =
-    let vars = varsInGraph G
+    let vars = removeLocalVars (varsInGraph G)
     let chans = channelsInGraph G
     Set.fold (fun rst var -> if isLocal var then Set.add (var,lb_I,Local,Ø) rst else Set.add (var,lb_I,Global,Ø) rst ) Ø (vars)
 let top_I G = Set.fold (fun rst var ->
@@ -46,9 +46,8 @@ let exVal_I G p =
         if Set.contains v vars then
             Set.add (v,i,Initial,Ø) xs
         else xs ) Ø policyMap
-    let exclVars = List.fold (fun xs (Policy(v,r)) -> Set.add v xs ) Ø p
+    let exclVars = (List.fold (fun xs (Policy(v,r)) -> Set.add v xs ) Ø p)+ (channelsInGraph G)
     let eI = Set.fold (fun rst var -> (Set.ofList [(var,ob_I,Initial,Ø)])+rst) polic (vars-exclVars)
-    printfn("%A") eI
     (eI,exVal_C)
 
 let con_Ig Lc id (s1,c1) (s2,c2) c =
@@ -72,7 +71,7 @@ let plus = function
 let minus  = function
     | (Undefined,_)         -> Undefined
     | (_,Undefined)         -> Undefined
-    | (I(mx,mn),I(mx',mn')) -> I( (min (mx+mn') MAX ), (max (mn+mx') MIN ) )
+    | (I(mx,mn),I(mx',mn')) -> I( (min (mx-mn') MAX ), (max (mn-mx') MIN ) )
     | (_,_)                 -> Empty
 let multi = function
     | (Undefined,_)         -> Undefined
@@ -125,7 +124,7 @@ let greaterEq = function
     | (_,_)                              -> Ø
 let lessEq = function
     | (I(mx,mn),I(mx',mn')) when mx<=mn' -> Set.ofList [True]
-    | (I(mx,mn),I(mx',mn')) when mn'<mx  -> Set.ofList [False]
+    | (I(mx,mn),I(mx',mn')) when mn>mx'  -> Set.ofList [False]
     | (I(mx,mn),I(mx',mn'))              -> Set.ofList [True; False]
     | (_,_)                              -> Ø
 let notEqual = function
