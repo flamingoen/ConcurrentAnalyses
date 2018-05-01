@@ -163,7 +163,10 @@ let rec makeNodeMap i G M = function
 let rec normalizeGraph (G,ex) =
     let (mapping,ind) = List.fold (fun (M,i) (s,e,id) -> (makeNodeMap i (componentFromId id G) M [s]) ) (Map.empty,0) ex
     let G' = List.foldBack (fun (qs,a,qt,id) rst -> ((Map.find qs mapping),a,(Map.find qt mapping),id)::rst ) G []
-    let ex' = List.fold (fun rst (s,e,id) -> ((Map.find s mapping),(Map.find e mapping),id)::rst ) [] ex
+    let ex' = List.fold (fun rst (s,e,id) ->
+        match Map.tryFind e mapping with
+        | Some(e') -> ((Map.find s mapping),(Map.find e' mapping),id)::rst
+        | None -> ((Map.find s mapping),-1,id)::rst ) [] ex
     (G',ex')
 
 // ##### PRODUCT GRAPH GENERATOR #####

@@ -56,6 +56,6 @@ let makeProductGraph graph exVal =
 let makeGraph graph exVal =
     let path = "graphviz/graph.gv"
     let initVals = List.fold (fun rst ((qs:int),qt,_) -> Set.add ("q"+(string qs)) rst ) Set.empty exVal
-    let endVals = List.fold (fun rst (qs,(qt:int),_) -> Set.add ("q"+(string qt)) rst ) Set.empty exVal
+    let endVals = List.fold (fun rst (qs,(qt:int),_) -> if qt>(-1) then Set.add ("q"+(string qt)) rst else rst ) Set.empty exVal
     let setisfyedGraph = List.fold (fun rst (qs:int,a,qt:int,id) -> ((Set.ofList [qs]),a,(Set.ofList [qt]),id)::rst) [] graph
     printGraphviz path setisfyedGraph initVals endVals
