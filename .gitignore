@@ -1,5 +1,6 @@
 lexerParser/*.fs
 lexerParser/*.fsi
+dlls/*
 
 results/*
 *.gv
