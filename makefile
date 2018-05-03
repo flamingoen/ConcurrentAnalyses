@@ -1,20 +1,32 @@
 path = results/result.out
+dllPath = dlls/
 
 default: run
 
-all: build run
+all: build dll run
 
-lexer:
-	mono "FsLexYacc.7.0.6/build/fslex.exe" lexerParser/GuardedCommandLexer.fsl --unicode
-
-parser:
-	mono "FsLexYacc.7.0.6/build/fsyacc.exe" lexerParser/GuardedCommandParser.fsp --module GuardedCommandParser
+guardedCommands:
+	@echo "Compile guarded commands lexer/parser:"
+	@mono "FsLexYacc.7.0.6/build/fslex.exe" lexerParser/GuardedCommandLexer.fsl --unicode
+	@mono "FsLexYacc.7.0.6/build/fsyacc.exe" lexerParser/GuardedCommandParser.fsp --module GuardedCommandParser
 
 policies:
-	mono "FsLexYacc.7.0.6/build/fslex.exe" lexerParser/PoliciesLexer.fsl --unicode
-	mono "FsLexYacc.7.0.6/build/fsyacc.exe" lexerParser/PoliciesParser.fsp --module PoliciesParser
+	@echo "Compile policy lexer/parser:"
+	@mono "FsLexYacc.7.0.6/build/fslex.exe" lexerParser/PoliciesLexer.fsl --unicode
+	@mono "FsLexYacc.7.0.6/build/fsyacc.exe" lexerParser/PoliciesParser.fsp --module PoliciesParser
 
-build: lexer parser policies
+defines.dll: defines.fs
+	@fsharpc --target:library -o:$(dllPath)/defines.dll defines.fs
+
+LexerParser.dll: defines.dll
+	@fsharpc --target:library -o:$(dllPath)/LexerParser.dll --reference:dlls/defines.dll --lib:dlls --reference:FsLexYacc.Runtime.7.0.6/lib/portable-net45+netcore45+wpa81+wp8+MonoAndroid10+MonoTouch10/FsLexYacc.Runtime.dll lexerParser/GuardedCommandParser.fs lexerParser/PoliciesParser.fs lexerParser/PoliciesLexer.fs lexerParser/GuardedCommandLexer.fs
+
+compiler.dll: LexerParser.dll defines.dll
+	@fsharpc --target:library -o:$(dllPath)/compiler.dll --reference:dlls/defines.dll --reference:FsLexYacc.Runtime.7.0.6/lib/portable-net45+netcore45+wpa81+wp8+MonoAndroid10+MonoTouch10/FsLexYacc.Runtime.dll --reference:$(dllPath)/LexerParser.dll compiler/*
+
+dll: dllLexParse dllCompiler
+
+build: guardedCommands policies
 
 run:
 	@fsharpi main.fsx
@@ -24,10 +36,13 @@ output:
 	@cat $(path)
 
 cleanOut:
-	rm results/*
-	rm graphviz/*
+	@rm results/*
+	@rm graphviz/*
 
 cleanParserLexer:
-	rm lexerParser/GuardedCommandLexer.fs lexerParser/GuardedCommandParser.fs lexerParser/GuardedCommandParser.fsi
+	@rm lexerParser/GuardedCommandLexer.fs lexerParser/GuardedCommandParser.fs lexerParser/GuardedCommandParser.fsi
 
-clean: cleanOut cleanParserLexer
+cleanDlls:
+	@rm dlls/*
+
+clean: cleanOut cleanParserLexer cleanDlls

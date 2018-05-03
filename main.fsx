@@ -6,15 +6,10 @@ type analysisType = RD | LV | DOS | DOI | PAR
 
 printfn""
 let stopWatch = System.Diagnostics.Stopwatch.StartNew()
-#load "defines.fs";
+#r "dlls/defines.dll"
+#r "dlls/LexerParser.dll"
+#r "dlls/compiler.dll"
 #load "programs.fs"
-#load "lexerParser/GuardedCommandParser.fs"
-#load "lexerParser/GuardedCommandLexer.fs"
-#load "lexerParser/PoliciesParser.fs"
-#load "lexerParser/PoliciesLexer.fs"
-#load "compiler/treeGenerator.fs"
-#load "compiler/programGraphs.fs"
-#load "compiler/policyGenerator.fs"
 #load "graphviz/graphViz.fs"
 #load "analyses/bitVectorAnalyses.fs"
 #load "analyses/tablesSign.fs"
@@ -29,8 +24,8 @@ printfn "load time:\t%f ms" stopWatch.Elapsed.TotalMilliseconds
 
 open Programs
 open ProgramGraphs
-open TreeGenerator
 open PolicyGenerator
+open TreeGenerator
 open GraphViz
 open Analysis
 
@@ -50,15 +45,11 @@ let run prog pol atype =
 
 
 // ##### Running everything ######
-let program = fibonachi
+let program = shifter
 let analysisType = DOI
-let pol = " n > -1
-            t > -1
-            k > -1
-            i > -1
-            j > -1 "
+let pol = " x > -1 y > -1 x<2 y<2 "
 
 stopWatch.Restart()
 run program pol analysisType
 stopWatch.Stop()
-printfn "Analysis time: %f ms" stopWatch.Elapsed.TotalMilliseconds
+printfn "\nAnalysis time: %f ms" stopWatch.Elapsed.TotalMilliseconds
