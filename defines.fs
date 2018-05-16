@@ -1,7 +1,7 @@
 module Defines
 
 // ##### DEFINITIONS #####
-type action = N of int | X of string | A of string | C of string | Assign | P | Cp | Decl | Seq | Send | Recv | Skip | If | Loop | Do | Gc | Guard | True | False | Pl | Mi | Mlt | Div | Mod | Gt | Lt | Eq | Geq | Leq | Neq | Not | Land | Lor;;
+type action = N of int | X of string | A of string | C of string | Assign | P | Cp | Decl | Seq | Send | Recv | Skip | Crit | If | Loop | Do | Gc | Guard | True | False | Pl | Mi | Mlt | Div | Mod | Gt | Lt | Eq | Geq | Leq | Neq | Not | Land | Lor;;
 type tree = Node of action*tree list ;;
 type origin = Global | Initial | Local | Concurrent
 let op =
@@ -83,7 +83,7 @@ type interval =
 
 // POLICIES
 
-type rule = R_Pl | R_Mi | R_Zr | R_Even | R_Odd | R_Grt of int | R_Lt of int | R_Eq of int
+type rule = R_Pl | R_Mi | R_Zr | R_Even | R_Odd | R_Grt of int | R_Lt of int | R_Eq of int | R_Grtx of string | R_Ltx of string | R_Eqx of string
 type policy = Policy of (string * rule)
 type policies = policy List
 
@@ -98,6 +98,9 @@ let ruleToString = function
     | R_Grt(n) -> ">"+(string n)
     | R_Lt(n) -> "<"+(string n)
     | R_Eq(n) -> "="+(string n)
+    | R_Grtx(x) -> ">"+x
+    | R_Ltx(x) -> "<"+x
+    | R_Eqx(x) -> "="+x
 
 let policyToString = function
     Policy(var,rule) -> var+(ruleToString rule)

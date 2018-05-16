@@ -7,4 +7,3 @@ open GuardedCommandLexer
 let parseProgram input =
     let lexbuf = LexBuffer<_>.FromString input
     GuardedCommandParser.start GuardedCommandLexer.tokenize lexbuf
-    ;;

@@ -10,7 +10,7 @@ let newstate() =
 
 let rec doneCg = function
     | Node(Guard,g::c::[])  -> Node(Not,[g])
-    | Node(Gc,c1::c2::[])     -> Node(Land,doneCg(c1)::doneCg(c2)::[])
+    | Node(Gc,c1::c2::[])   -> Node(Land,doneCg(c1)::doneCg(c2)::[])
     | Node(action,_)        -> failwith ("Invalid node "+(string action)+" in done")
 
 let pGet p var =
@@ -40,6 +40,8 @@ let rec Pg qs qt p id tree =
     | Node(Recv,_)      ->
         ([(qs,(pUpdate p tree),qt,id)],[],p)
     | Node(Skip,_)      ->
+        ([(qs,(pUpdate p tree),qt,id)],[],p)
+    | Node(Crit,_)      ->
         ([(qs,(pUpdate p tree),qt,id)],[],p)
     | Node(P,t::[])     ->
         Pg qs qt p id t
@@ -165,7 +167,8 @@ let rec normalizeGraph (G,ex) =
     let G' = List.foldBack (fun (qs,a,qt,id) rst -> ((Map.find qs mapping),a,(Map.find qt mapping),id)::rst ) G []
     let ex' = List.fold (fun rst (s,e,id) ->
         match Map.tryFind e mapping with
-        | Some(e') -> ((Map.find s mapping),(Map.find e' mapping),id)::rst
+        | Some(e') ->
+        ((Map.find s mapping),e',id)::rst
         | None -> ((Map.find s mapping),-1,id)::rst ) [] ex
     (G',ex')
 

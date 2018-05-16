@@ -6,16 +6,16 @@ open Defines
 %token <int> INT
 %token <string> VAR
 %token GT LT GEQ LEQ EQ NEQ
-%token IF FI DO OD LOOP POOL DECL PAR RAP SKIP TRUE FALSE
+%token IF FI DO OD LOOP POOL DECL PAR RAP SKIP CRIT TRUE FALSE
 %token PL MI MLT DIV MOD
 %token LAND LOR
 %token ASSIGN
 %token CON SEQ
 %token SEND RECV IMP RB LB NOT LP RP
 
-%left SEQ
-
-
+%left SEQ opa opb a b PL MI
+%right DIV MLT MOD
+%nonassoc NOT
 
 // start
 %start start
@@ -48,6 +48,7 @@ c:
     | x ASSIGN a            { Node(Assign,[$1; $3]) }
     | arr LB a RB ASSIGN a  { Node(Assign,[Node(A($1),[$3]); $6]) }
     | SKIP                  { Node(Skip,[]) }
+    | CRIT                  { Node(Crit,[]) }
     | IF cg FI              { Node(If,[$2]) }
     | LOOP cg POOL          { Node(Loop,[$2]) }
     | DO gc OD              { Node(Do,[$2]) }
@@ -72,7 +73,7 @@ b:
     | TRUE               { Node(True,[]) }
     | FALSE              { Node(False,[]) }
     | a opr a            { Node($2,[$1;$3]) }
-    | b opb b            { Node($2,[$1;$3]) }
+    | b opb b %prec NOT  { Node($2,[$1;$3]) }
     | NOT b              { Node(Not,[$2]) }
     | LP b RP            { $2 }
 

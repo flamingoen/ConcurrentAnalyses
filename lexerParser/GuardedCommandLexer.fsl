@@ -18,6 +18,7 @@ let keywords =
     "pool",     POOL;
     "var",      DECL;
     "skip",     SKIP;
+    "crit",     CRIT;
     "true",     TRUE;
     "false",    FALSE;
     ] |> Map.ofList
