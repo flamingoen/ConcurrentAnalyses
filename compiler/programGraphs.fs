@@ -56,8 +56,8 @@ let rec Pg qs qt p id tree =
     | Node(Do,gc::[])   ->
         let (lst,ie,p') = (Pg qs qs p id gc)
         ((qs,(pUpdate p (doneCg gc)),qt,id)::lst,ie,Map.empty)
-    | Node(Loop,[cg]) ->
-        Pg qs qs p id cg
+    | Node(Loop,[c]) ->
+        Pg qs qs p id c
     | Node(Guard,g::c::[])  ->
         let q = newstate()
         let (lst,ie,p') = (Pg q qt p id c)
@@ -165,11 +165,11 @@ let rec makeNodeMap i G M = function
 let rec normalizeGraph (G,ex) =
     let (mapping,ind) = List.fold (fun (M,i) (s,e,id) -> (makeNodeMap i (componentFromId id G) M [s]) ) (Map.empty,0) ex
     let G' = List.foldBack (fun (qs,a,qt,id) rst -> ((Map.find qs mapping),a,(Map.find qt mapping),id)::rst ) G []
-    let ex' = List.fold (fun rst (s,e,id) ->
+    let ex' = List.foldBack (fun (s,e,id) rst ->
         match Map.tryFind e mapping with
         | Some(e') ->
         ((Map.find s mapping),e',id)::rst
-        | None -> ((Map.find s mapping),-1,id)::rst ) [] ex
+        | None -> ((Map.find s mapping),-1,id)::rst ) ex []
     (G',ex')
 
 // ##### PRODUCT GRAPH GENERATOR #####

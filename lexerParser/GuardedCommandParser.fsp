@@ -50,7 +50,7 @@ c:
     | SKIP                  { Node(Skip,[]) }
     | CRIT                  { Node(Crit,[]) }
     | IF cg FI              { Node(If,[$2]) }
-    | LOOP cg POOL          { Node(Loop,[$2]) }
+    | LOOP c POOL          { Node(Loop,[$2]) }
     | DO gc OD              { Node(Do,[$2]) }
 
 gc:

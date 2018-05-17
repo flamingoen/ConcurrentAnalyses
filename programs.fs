@@ -24,6 +24,32 @@ par
 rap
 "
 
+let badBakery = "
+par
+    var x;
+    loop
+        skip;
+        c1 := c2*(-1);
+        do c2 > 0 -> c1 := c2*(-1) od;
+        in?x;
+        crit;
+        out!x;
+        c1 := -1
+    pool
+[]
+    var x;
+    loop
+        skip;
+        c2 := c1*(-1);
+        do c1 > 0 -> c2 := c1*(-1) od;
+        in?x;
+        crit;
+        out!x;
+        c2 := -1
+    pool
+rap
+"
+
 let bakeryAlgorithm = "
 par
     do true ->
@@ -31,7 +57,7 @@ par
         if
             y = 0 | x < y -> skip
         []
-            ~(y = 0) & ~(x < y) -> skip
+            (~(y = 0)) & (~(x < y)) -> skip
         fi;
         x := 0
     od
@@ -41,7 +67,7 @@ par
         if
             x = 0 | y < x -> skip
         []
-            ~(x = 0) & ~(y < x) -> skip
+            (~(x = 0)) & (~(y < x)) -> skip
         fi;
         y := 0
     od
@@ -156,11 +182,11 @@ let fibonachi = "
 let shifter = "
 par
     loop true ->
-        if x=0 -> x := 1 fi
+        if x>y -> y := x + 1 fi
     pool
 []
     loop true ->
-        if x=1 -> x := 0 fi
+        if y>x -> y := x - 1 fi
     pool
 rap
 "
