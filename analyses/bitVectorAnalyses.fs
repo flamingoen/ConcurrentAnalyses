@@ -5,11 +5,6 @@ open ProgramGraphs
 
 let BVF kill gen state t = (Set.difference state (kill state t)) + (gen t)
 
-let con_BVFa (s':Set<_>) (qs,a,qt,id) c =
-    match Map.tryFind id c with
-    | Some(s) -> Map.add id (s'+s) c
-    | None    -> Map.add id s' c
-
 let con_BVFg id Ss c = Map.fold (fun rst id' s -> if id'=id then rst else rst+s ) Ø c
 
 let combine x s = Set.fold (fun rst y -> Set.add (x,y) rst ) Set.empty s
@@ -53,7 +48,12 @@ let gen_RD (qs,a,qt,id) =
         if isLocal x then Set.ofList [(x,qs,qt)]
         else Set.ofList [(x,qs,qt)]
     | _ -> Set.empty
-    ;;
+
+let con_RDa (s':Set<_>) (qs,a,qt,id) c =
+    let gen = gen_RD (qs,a,qt,id)
+    match Map.tryFind id c with
+    | Some(s) -> Map.add id (gen+s) c
+    | None    -> Map.add id gen c
 
 let f_RD state t = BVF (kill_RD) (gen_RD) state t
 
@@ -84,5 +84,11 @@ let gen_LV (qs,a,qt,id) =
     | Node( Assign, x::arthm::xs )  -> FV arthm
     | Node( Send,   ch::arthm::xs)  -> FV arthm
     | _ -> Set.empty
+
+let con_LVa (s':Set<_>) (qs,a,qt,id) c =
+    let gen = gen_LV (qs,a,qt,id)
+    match Map.tryFind id c with
+    | Some(s) -> Map.add id (gen+s) c
+    | None    -> Map.add id gen c
 
 let f_LV state t = BVF (kill_LV) (gen_LV) state t

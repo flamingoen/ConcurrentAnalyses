@@ -11,11 +11,9 @@ open GraphViz
 let mutable transitions = 0
 let mutable maxWSize = 0
 
-let printStep (qs,a,qt,id) W =
-    //printfn("id:%A  %A->%A:\t  %-10s W: %A ") id qs qt (nodeToString a) (List.length W)
-    //List.iter (fun (qs,a,qt,id) ->  printf"(%A->%A)" qs qt ) W
-    //printMap c
-    //printfn ""
+let printStep (qs,a,qt,id) W=
+    // printfn("id:%A  %A->%A:\t  %-10s W: %A ") id qs qt (nodeToString a) (List.length W)
+    // List.iter (fun (qs,a,qt,id) ->  printf"(%A->%A)" qs qt ) W
     if transitions%100=0 then printf("\n")
     printf("#")
 
@@ -61,18 +59,18 @@ let rec MFP2 cons Aa c p W =
             Map.add q ( lob (Map.find q rst) (con_g id (btm L) c) L ) rst ) Aa E
         (r,p)
     | Some((qs,a,qt,id),xs) ->
-        printStep (qs,a,qt,id) xs
         let sqs = (Map.find qs Aa)
         let sqt = (Map.find qt Aa)
         let newA = f sqs (qs,a,qt,id)
         let s' = lob (newA) (con_g id newA c) L
         let analysisChanged = (not (subeq s' sqt L))
         updateStats xs
+        printStep (qs,a,qt,id) xs
         if analysisChanged then
             let sqt' = (lob s' sqt L)
             let Aa' = (Map.add qt sqt' Aa)
             let W' = newW G (qs,a,qt,id) xs insert G
-            let c' = con_a (dif newA sqs L) (qs,a,qt,id) c
+            let c' = con_a sqs (qs,a,qt,id) c
             let p' = Map.add qt (policySatisfied sqt') p
             MFP2 cons Aa' c' p' W'
         else MFP2 cons Aa c p xs

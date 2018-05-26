@@ -8,12 +8,12 @@ let MAX = 100
 let MIN = -100
 
 let ob_I = I(MAX,MIN)
-let lb_I = Empty
+let lb_I = Undefined
 
-let btm_I G =
-    let vars = removeLocalVars (varsInGraph G)
-    let chans = channelsInGraph G
-    Set.fold (fun rst var -> Set.add (var,lb_I,Ø) rst ) Ø (vars)
+let btm_I G = Ø
+    //let vars = removeLocalVars (varsInGraph G)
+    //let chans = channelsInGraph G
+    //Set.fold (fun rst var -> Set.add (var,lb_I,Ø) rst ) Ø (vars)
 
 let top_I G = Set.fold (fun rst var -> Set.add (var,ob_I,Ø) rst ) Ø (varsInGraph G)
 
@@ -65,17 +65,6 @@ let exVal_I G p =
     let exclVars = (List.fold (fun xs (Policy(v,r)) -> Set.add v xs ) Ø p)+ (channelsInGraph G)
     let eI = Set.fold (fun rst var -> (Set.ofList [(var,ob_I,Ø)])+rst) polic (vars-exclVars)
     (eI,exVal_C)
-
-let con_Ig Lc id (Ss,Cs) c =
-    let cs = Map.fold (fun r id' s -> if id'=id then r else (lob_I r s) ) Ø c
-    //let cs' = Set.fold (fun rst (v,s,c) ->
-    //    if Set.intersect (dif_I s2  s1) c = c then Set.add (v,s,c) rst else rst ) Ø cs
-    (cs,(btm Lc))
-
-let con_Ia (Ss,Sc) (qs,a,qt,id) c =
-    match Map.tryFind id c with
-        | Some(s) -> Map.add id (lob_I Ss s) c
-        | None    -> Map.add id Ss c
 
 let plus = function
     | (Undefined,_)         -> Undefined
@@ -182,6 +171,26 @@ let rec B_I state = function
     | Node(Land,b1::b2::_)  -> magic (B_I state b1) (B_I state b2) _and
     | Node(a,_)             -> failwith("In Bs: unknown match for action "+(string a))
 
+let con_Ig Lc id (Ss,Sc) c =
+    let cs = Map.fold (fun r id' s -> if id'=id then r else (lob_I r s) ) Ø c
+    let cs' = Set.fold (fun rst (v,s,cst) ->
+        if (Set.intersect (rmConstraint Ss) cst) = cst then Set.add (v,s,Sc) rst else rst ) Set.empty cs
+    (cs',(btm Lc))
+
+let con_Ia (Ss,Sc) (qs,a,qt,id) c =
+    let s' = match a with
+                | Node( Assign, Node(X(x),_)::fu::[] )  -> Set.ofList [(x,(A_I Ss fu),Sc)]
+                | Node( Assign, Node(A(ar),l)::fu::[] ) -> Set.ofList [(ar,(A_I Ss fu),Sc)]
+                | Node( Decl,   Node(X(x),_)::xs )      -> Set.ofList [(x,I(0,0),Sc)]
+                | Node( Decl,   Node(A(ar),l)::xs)      -> Set.ofList [(ar,I(0,0),Sc)]
+                | Node( Send,   Node(C(ch),_)::x::xs)   -> Set.ofList [(ch,(A_I Ss x),Sc)]
+                | Node( Recv,   ch::Node(X(x),_)::xs)   -> Set.ofList [(x,(A_I Ss ch),Sc)]
+                | Node( Recv,   ch::Node(A(ar),l)::xs)  -> Set.ofList [(ar,(A_I Ss ch),Sc)]
+                | _ -> Ø
+    match Map.tryFind id c with
+        | Some(s) -> Map.add id (lob_I s' s) c
+        | None    -> Map.add id s' c
+
 let update x interval c state =
     let rSet = Set.filter (fun (v,i,c') -> not (v=x) ) state
     Set.add (x,interval,c) rSet
@@ -196,25 +205,17 @@ let mergeIntervalSet s = Set.fold (fun rst e -> lob_I (Set.ofList [e]) rst) Ø s
 let f_I splitInterval (Li,Lc) (Ss,Sc) (qs,a,qt,id) =
     let Sc' = f_C B_I Li Lc (splitIntervalSet Ss splitInterval) Sc (qs,a,qt,id)
     match a with
-    | Node( Assign, Node(X(x),_)::fu::[] )  ->
-        (update x (A_I Ss fu) Ø Ss , Sc')
-    | Node( Assign, Node(A(ar),l)::fu::[] ) ->
-        (update ar ((A_I Ss fu)+(A_I Ss (Node(A(ar),l)))) Ø Ss , Sc')
-    | Node( Decl,   Node(X(x),_)::xs )      ->
-        (update x (I(0,0)) Ø Ss , Sc')
-    | Node( Decl,   Node(A(ar),l)::xs)      ->
-        (update ar (I(0,0)) Ø Ss , Sc')
-    | Node( Send,   Node(C(ch),_)::x::xs)   ->
-        (update ch (A_I Ss x) Ø Ss , Sc')
-    | Node( Recv,   ch::Node(X(x),_)::xs)   ->
-        (update x (A_I Ss ch) Ø Ss , Sc')
-    | Node( Recv,   ch::Node(A(ar),l)::xs)  ->
-        (update ar ((A_I Ss ch)+(A_I Ss (Node(A(ar),l)))) Ø Ss , Sc')
+    | Node( Assign, Node(X(x),_)::fu::[] )  -> (update x (A_I Ss fu) Ø Ss , Sc')
+    | Node( Assign, Node(A(ar),l)::fu::[] ) -> (update ar ((A_I Ss fu)+(A_I Ss (Node(A(ar),l)))) Ø Ss , Sc')
+    | Node( Decl,   Node(X(x),_)::xs )      -> (update x (I(0,0)) Ø Ss , Sc')
+    | Node( Decl,   Node(A(ar),l)::xs)      -> (update ar (I(0,0)) Ø Ss , Sc')
+    | Node( Send,   Node(C(ch),_)::x::xs)   -> (update ch (A_I Ss x) Ø Ss , Sc')
+    | Node( Recv,   ch::Node(X(x),_)::xs)   -> (update x (A_I Ss ch) Ø Ss , Sc')
+    | Node( Recv,   ch::Node(A(ar),l)::xs)  -> (update ar ((A_I Ss ch)+(A_I Ss (Node(A(ar),l)))) Ø Ss , Sc')
     | Node( b, _ ) when isBoolOp b          ->
         let Ss' = mergeIntervalSet (boolFilter B_I a (splitIntervalSet Ss splitInterval))
         (Ss',Sc')
-    | _ ->
-        (Ss , Sc')
+    | _ -> (Ss , Sc')
 
 let p_I p (s,c) =
     List.forall (fun (Policy(v,r)) ->

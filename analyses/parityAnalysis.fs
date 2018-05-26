@@ -85,14 +85,22 @@ let exVal_p G p =
         (Set.ofList [(var,Even,Ø);(var,Odd,Ø)])+rst) polic (vars-exclVars)
     (ex_p,exVal_C)
 
-let con_pg Lc id (Ss,Cs) c =
+let con_pg Lc id (Ss,Sc) c =
     let cs = Map.fold (fun r id' s -> if id'=id then r else r+s ) Set.empty c
-    //let S = removeOrigin (Set.filter (fun (v,s,o,c) -> o=Global ) s2)
-    //let cs' = Set.fold (fun rst (v,s,cstr) ->
-    //    if Set.intersect S cstr = cstr then Set.add (v,s,Concurrent,cstr) rst else rst ) Set.empty cs
-    (cs,(btm Lc))
+    let cs' = Set.fold (fun rst (v,s,cst) ->
+        if (Set.intersect (rmConstraint Ss) cst) = cst then Set.add (v,s,Sc) rst else rst ) Set.empty cs
+    (cs',(btm Lc))
 
 let con_pa (Ss,Sc) (qs,a,qt,id) c =
+    let s' = match a with
+                | Node( Assign, Node(X(x),_)::fu::[] )  -> Set.fold (fun r par -> Set.add (x,par,Sc) r ) Ø (Ap Ss fu)
+                | Node( Assign, Node(A(ar),l)::fu::[] ) -> Set.fold (fun r par -> Set.add (ar,par,Sc) r ) Ø (Ap Ss fu)
+                | Node( Decl,   Node(X(x),_)::xs )      -> Set.ofList [(x,Even,Sc)]
+                | Node( Decl,   Node(A(ar),l)::xs)      -> Set.ofList [(ar,Odd,Sc)]
+                | Node( Send,   Node(C(ch),_)::x::xs)   -> Set.fold (fun r par -> Set.add (ch,par,Sc) r ) Ø (Ap Ss x)
+                | Node( Recv,   ch::Node(X(x),_)::xs)   -> Set.fold (fun r par -> Set.add (x,par,Sc) r ) Ø (Ap Ss ch)
+                | Node( Recv,   ch::Node(A(ar),l)::xs)  -> Set.fold (fun r par -> Set.add (ar,par,Sc) r ) Ø (Ap Ss ch)
+                | _                                     -> Ø
     match Map.tryFind id c with
         | Some(s) -> Map.add id (Set.union s Ss) c
         | None    -> Map.add id Ss c
@@ -109,22 +117,14 @@ let p_p p (s,c) =
 let f_p (Lp,Lc) (Sp,Sc) (qs,a,qt,id) =
     let Sc' = f_C Bp Lp Lc Sp Sc (qs,a,qt,id)
     match a with
-    | Node( Assign, Node(X(x),_)::fu::[] )  ->
-        ((update x (Ap Sp fu) Sc Sp),Sc')
-    | Node( Assign, Node(A(ar),l)::fu::[] ) ->
-        ((update ar (Ap Sp fu+(Ap Sp (Node(A(ar),l)))) Sc Sp),Sc')
-    | Node( Decl,   Node(X(x),_)::xs )      ->
-        ((update x (Set.ofList [Even]) Sc Sp),Sc')
-    | Node( Decl,   Node(A(ar),l)::xs)      ->
-        ((update ar ((Ap Sp (Node(A(ar),l)))+(Set.ofList [Even])) Sc Sp),Sc')
-    | Node( Send,   Node(C(ch),_)::x::xs)   ->
-        ((update ch (Ap Sp x) Sc Sp),Sc')
-    | Node( Recv,   ch::Node(X(x),_)::xs)   ->
-        ((update x (Ap Sp ch) Sc Sp),Sc')
-    | Node( Recv,   ch::Node(A(ar),l)::xs)  ->
-        ((update ar ( (Ap Sp ch) + (Ap Sp (Node(A(ar),l))) ) Sc Sp),Sc')
-    | _ ->
-        (Sp,Sc')
+    | Node( Assign, Node(X(x),_)::fu::[] )  -> ((update x (Ap Sp fu) Sc Sp),Sc')
+    | Node( Assign, Node(A(ar),l)::fu::[] ) -> ((update ar (Ap Sp fu+(Ap Sp (Node(A(ar),l)))) Sc Sp),Sc')
+    | Node( Decl,   Node(X(x),_)::xs )      -> ((update x (Set.ofList [Even]) Sc Sp),Sc')
+    | Node( Decl,   Node(A(ar),l)::xs)      -> ((update ar ((Ap Sp (Node(A(ar),l)))+(Set.ofList [Even])) Sc Sp),Sc')
+    | Node( Send,   Node(C(ch),_)::x::xs)   -> ((update ch (Ap Sp x) Sc Sp),Sc')
+    | Node( Recv,   ch::Node(X(x),_)::xs)   -> ((update x (Ap Sp ch) Sc Sp),Sc')
+    | Node( Recv,   ch::Node(A(ar),l)::xs)  -> ((update ar ( (Ap Sp ch) + (Ap Sp (Node(A(ar),l))) ) Sc Sp),Sc')
+    | _ -> (Sp,Sc')
 
 let parityToString = function
     | Odd -> "o"

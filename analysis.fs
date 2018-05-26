@@ -28,7 +28,7 @@ let printPolicy p sat =
 
 let reachingDefinition G ex non =
     printf"\nReaching definition:"
-    let (res,p) = MFP (L_RD G) G (E_initial ex) (exVal_RD G non) f_RD con_BVFg (con_BVFa) p_true
+    let (res,p) = MFP (L_RD G) G (E_initial ex) (exVal_RD G non) f_RD con_BVFg (con_RDa) p_true
     printfn "\n"
     Map.iter (fun q state ->
         printf("q%A:\t") q
@@ -39,7 +39,7 @@ let reachingDefinition G ex non =
 
 let liveVariables G ex =
     printf"\nLive variables:"
-    let (res,p) = MFP L_LV (inverse G) (E_final ex) exVal_LV f_LV con_BVFg (con_BVFa) p_true
+    let (res,p) = MFP L_LV (inverse G) (E_final ex) exVal_LV f_LV con_BVFg (con_LVa) p_true
     printfn("\n")
     Map.iter (fun q state ->
         printf("q%A:\t") q

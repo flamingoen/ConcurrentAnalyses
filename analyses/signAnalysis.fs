@@ -78,10 +78,25 @@ let exVal_CS G p =
         (Set.ofList [(var,Zero,Ø);(var,Pos,Ø);(var,Neg,Ø)])+rst ) polic (vars-exclVars)
     (ex_s,exVal_C)
 
-let con_CSg Lc id (s2,c2) c =
+let con_CSa (Ss,Sc) (qs,a,qt,id) c =
+    let s' = match a with
+                | Node( Assign, Node(X(x),_)::fu::[] )  -> Set.fold (fun r sign -> Set.add (x,sign,Sc) r ) Ø (Ac Ss fu)
+                | Node( Assign, Node(A(ar),l)::fu::[] ) -> Set.fold (fun r sign -> Set.add (ar,sign,Sc) r ) Ø (Ac Ss fu)
+                | Node( Decl,   Node(X(x),_)::xs )      -> Set.ofList [(x,Zero,Sc)]
+                | Node( Decl,   Node(A(ar),l)::xs)      -> Set.ofList [(ar,Zero,Sc)]
+                | Node( Send,   Node(C(ch),_)::x::xs)   -> Set.fold (fun r sign -> Set.add (ch,sign,Sc) r ) Ø (Ac Ss x)
+                | Node( Recv,   ch::Node(X(x),_)::xs)   -> Set.fold (fun r sign -> Set.add (x,sign,Sc) r ) Ø (Ac Ss ch)
+                | Node( Recv,   ch::Node(A(ar),l)::xs)  -> Set.fold (fun r sign -> Set.add (ar,sign,Sc) r ) Ø (Ac Ss ch)
+                | _                                     -> Ø
+    match Map.tryFind id c with
+        | Some(s) -> Map.add id (Set.union s s') c
+        | None    -> Map.add id s' c
+
+let con_CSg Lc id (Ss,Sc) c =
     let cs = Map.fold (fun r id' s -> if id'=id then r else r+s ) Ø c
-    //let cs' = Set.fold (fun rst (v,s) -> if (Set.intersect s2 cstr) = cstr then Set.add (v,s,cstr) rst else rst ) Set.empty cs
-    (cs,(btm Lc))
+    let cs' = Set.fold (fun rst (v,s,cst) ->
+        if (Set.intersect (rmConstraint Ss) cst) = cst then Set.add (v,s,Sc) rst else rst ) Set.empty cs
+    (cs',(btm Lc))
 
 let update x signs c state =
     let rSet = Set.filter (fun (y,s,c') -> not (x=y) ) state
@@ -94,28 +109,15 @@ let p_s p (s,c) =
 let f_CS (Ls,Lc) (Ss,Sc) (qs,a,qt,id) =
     let Sc' = f_C Bs Ls Lc Ss Sc (qs,a,qt,id)
     match a with
-    | Node( Assign, Node(X(x),_)::fu::[] )  ->
-        ((update x (Ac Ss fu) Sc Ss),Sc')
-    | Node( Assign, Node(A(ar),l)::fu::[] ) ->
-        ((update ar (Ac Ss fu+(Ac Ss (Node(A(ar),l)))) Sc Ss),Sc')
-    | Node( Decl,   Node(X(x),_)::xs )      ->
-        ((update x (Set.ofList [Zero]) Sc Ss),Sc')
-    | Node( Decl,   Node(A(ar),l)::xs)      ->
-        ((update ar ((Ac Ss (Node(A(ar),l)))+(Set.ofList [Zero])) Sc Ss),Sc')
-    | Node( Send,   Node(C(ch),_)::x::xs)   ->
-        ((update ch (Ac Ss x) Sc Ss),Sc')
-    | Node( Recv,   ch::Node(X(x),_)::xs)   ->
-        ((update x (Ac Ss ch) Sc Ss),Sc')
-    | Node( Recv,   ch::Node(A(ar),l)::xs)  ->
-        ((update ar ( (Ac Ss ch) + (Ac Ss (Node(A(ar),l))) ) Sc Ss),Sc')
-    | Node( b, _ ) when isBoolOp b          ->
-        ((boolFilter Bs a Ss),Sc')
+    | Node( Assign, Node(X(x),_)::fu::[] )  -> ((update x (Ac Ss fu) Sc Ss),Sc')
+    | Node( Assign, Node(A(ar),l)::fu::[] ) -> ((update ar (Ac Ss fu+(Ac Ss (Node(A(ar),l)))) Sc Ss),Sc')
+    | Node( Decl,   Node(X(x),_)::xs )      -> ((update x (Set.ofList [Zero]) Sc Ss),Sc')
+    | Node( Decl,   Node(A(ar),l)::xs)      -> ((update ar ((Ac Ss (Node(A(ar),l)))+(Set.ofList [Zero])) Sc Ss),Sc')
+    | Node( Send,   Node(C(ch),_)::x::xs)   -> ((update ch (Ac Ss x) Sc Ss),Sc')
+    | Node( Recv,   ch::Node(X(x),_)::xs)   -> ((update x (Ac Ss ch) Sc Ss),Sc')
+    | Node( Recv,   ch::Node(A(ar),l)::xs)  -> ((update ar ( (Ac Ss ch) + (Ac Ss (Node(A(ar),l))) ) Sc Ss),Sc')
+    | Node( b, _ ) when isBoolOp b          -> ((boolFilter Bs a Ss),Sc')
     | _ -> (Ss,Sc')
-
-let con_CSa (Ss,Sc) (qs,a,qt,id) c =
-    match Map.tryFind id c with
-        | Some(s) -> Map.add id (Set.union s Ss) c
-        | None    -> Map.add id Ss c
 
 let signToString = function
     | Pos  -> "+"
