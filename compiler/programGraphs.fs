@@ -174,7 +174,7 @@ let rec normalizeGraph (G,ex) =
 
 // ##### PRODUCT GRAPH GENERATOR #####
 
-let addToNodes nodes (qs,a,qt,id) = Set.fold (fun rst q -> Set.add (qs+q,a,qt+q,id) rst) Set.empty nodes
+let addToNodes nodes (qs,a,qt,id) = Set.fold (fun rst q -> Set.add (qs+q,a,qt+q,0) rst) Set.empty nodes
 
 let merge nodes graph = List.fold (fun rst t -> rst + (addToNodes nodes t) ) Set.empty graph
 
