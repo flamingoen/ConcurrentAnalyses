@@ -5,7 +5,7 @@ open TablesSign
 open ConstraintAnalysis
 open ProgramGraphs
 
-let signOf x state = Set.fold (fun rst (y,sign,o,c) -> if y=x then Set.add sign rst else rst ) Set.empty state
+let signOf x state = Set.fold (fun rst (y,sign,c) -> if y=x then Set.add sign rst else rst ) Set.empty state
 
 let rec Ac state = function
     | Node(X(x),_)          -> signOf x state
@@ -52,14 +52,16 @@ let ruleToSign = function
 
 let top_s G =
     let vars = (removeLocalVars (varsInGraph G))+(channelsInGraph G)
-    Set.fold (fun rst var -> if isLocal var then (Set.ofList [(var,Zero,Local,Ø);(var,Pos,Local,Ø);(var,Neg,Local,Ø)])+rst else (Set.ofList [(var,Zero,Global,Ø);(var,Pos,Global,Ø);(var,Neg,Global,Ø)])+rst ) Ø vars
+    Set.fold (fun rst var -> (Set.ofList [(var,Zero,Ø);(var,Pos,Ø);(var,Neg,Ø)])+rst ) Ø vars
 
 let Ls G =
-    let order s1 s2 = Set.(+) (s1,s2)
-    (Ø,(top_s G),order)
+    let lob s1 s2 = Set.(+) (s1,s2)
+    let dif s1 s2 = Set.difference s1 s2
+    (Ø,(top_s G),lob,dif)
 
-let order_CS (s1,c1) (s2,c2) = ((Set.union s1 s2),(Set.intersect c1 c2))
-let Lcs G = ((Ø,(btm_C G)),((top_s G),Ø),order_CS)
+let lob_CS (s1,c1) (s2,c2) = ((Set.union s1 s2),(Set.intersect c1 c2))
+let dif_CS (s1,c1) (s2,c2) = ((Set.difference s1 s2),(Set.difference c1 c2))
+let Lcs G = ((Ø,(btm_C G)),((top_s G),Ø),lob_CS,dif_CS)
 
 let exVal_CS G p =
     let vars = (removeLocalVars (varsInGraph G))+(channelsInGraph G)
@@ -69,36 +71,25 @@ let exVal_CS G p =
         | Some(s) when Set.isEmpty ( Set.intersect s (ruleToSign r) ) -> Map.add v ( Set.ofList [S_Undefined]) xs
         | Some(s) ->  Map.add v ( Set.intersect s (ruleToSign r) ) xs ) Map.empty p
     let polic = Map.fold (fun xs v s ->
-        if Set.contains v vars then Set.fold (fun xs' sign -> Set.add (v,sign,Initial,Ø) xs' ) xs s
+        if Set.contains v vars then Set.fold (fun xs' sign -> Set.add (v,sign,Ø) xs' ) xs s
         else xs ) Ø policyMap
     let exclVars = List.fold (fun xs (Policy(v,r)) -> Set.add v xs ) Ø p
     let ex_s = Set.fold (fun rst var ->
-        (Set.ofList [(var,Zero,Initial,Ø);(var,Pos,Initial,Ø);(var,Neg,Initial,Ø)])+rst ) polic (vars-exclVars)
+        (Set.ofList [(var,Zero,Ø);(var,Pos,Ø);(var,Neg,Ø)])+rst ) polic (vars-exclVars)
     (ex_s,exVal_C)
 
-let con_CSg Lc id (s1,c1) (s2,c2) c =
-    let cs = Map.fold (fun r id' s -> if id'=id then r else r+s ) Set.empty c
-    let S = removeOrigin (Set.filter (fun (v,s,o,c) -> o=Global ) s2)
-    let cs' = Set.fold (fun rst (v,s,cstr) ->
-        if Set.intersect S cstr = cstr then Set.add (v,s,Concurrent,cstr) rst else rst ) Set.empty cs
-    (cs',(btm Lc))
-
-let con_CSa id (s1,c1) (s2,c2) c =
-    let s' =  Set.fold (fun rst (v,s,o,c') -> if o = Global then Set.add (v,s,c') rst else rst ) Set.empty (Set.union s1 s2)
-    match Map.tryFind id c with
-        | Some(s) -> Map.add id (s'+s) c
-        | None    -> Map.add id s' c
+let con_CSg Lc id (s2,c2) c =
+    let cs = Map.fold (fun r id' s -> if id'=id then r else r+s ) Ø c
+    //let cs' = Set.fold (fun rst (v,s) -> if (Set.intersect s2 cstr) = cstr then Set.add (v,s,cstr) rst else rst ) Set.empty cs
+    (cs,(btm Lc))
 
 let update x signs c state =
-    let rSet = Set.filter (fun (y,s,o,c') -> not (x=y) ) state
-    Set.fold (fun rst sign ->
-        if isLocal x then Set.add (x,sign,Local,c) rst
-        else Set.add (x,sign,Global,c) rst
-    ) rSet signs
+    let rSet = Set.filter (fun (y,s,c') -> not (x=y) ) state
+    Set.fold (fun rst sign -> Set.add (x,sign,c) rst ) rSet signs
 
 let p_s p (s,c) =
     List.forall (fun (Policy(v,r)) ->
-        Set.fold (fun xs (v',s,o,c) -> v=v' && Set.contains s (ruleToSign r) || xs ) false s ) p
+        Set.fold (fun xs (v',s,c) -> v=v' && Set.contains s (ruleToSign r) || xs ) false s ) p
 
 let f_CS (Ls,Lc) (Ss,Sc) (qs,a,qt,id) =
     let Sc' = f_C Bs Ls Lc Ss Sc (qs,a,qt,id)
@@ -120,6 +111,11 @@ let f_CS (Ls,Lc) (Ss,Sc) (qs,a,qt,id) =
     | Node( b, _ ) when isBoolOp b          ->
         ((boolFilter Bs a Ss),Sc')
     | _ -> (Ss,Sc')
+
+let con_CSa (Ss,Sc) (qs,a,qt,id) c =
+    match Map.tryFind id c with
+        | Some(s) -> Map.add id (Set.union s Ss) c
+        | None    -> Map.add id Ss c
 
 let signToString = function
     | Pos  -> "+"

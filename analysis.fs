@@ -28,22 +28,22 @@ let printPolicy p sat =
 
 let reachingDefinition G ex non =
     printf"\nReaching definition:"
-    let (res,p) = MFP (L_RD G) G (E_initial ex) (exVal_RD G non) (f_RD non) con_RDg con_RDa p_true
+    let (res,p) = MFP (L_RD G) G (E_initial ex) (exVal_RD G non) f_RD con_BVFg (con_BVFa) p_true
     printfn "\n"
     Map.iter (fun q state ->
         printf("q%A:\t") q
-        (Set.iter (fun (x,q1,q2,s) -> printf("%s: %A -> %A\t" ) x q1 q2) state)
+        (Set.iter (fun (x,q1,q2) -> if q1=non then printf("%s: ?\t\t " ) x else printf("%s: %A -> %A\t" ) x q1 q2) state)
         printfn("")
         ) res
     printFooter G
 
 let liveVariables G ex =
     printf"\nLive variables:"
-    let (res,p) = MFP L_LV (inverse G) (E_final ex) exVal_LV f_LV con_LVg con_LVa p_true
+    let (res,p) = MFP L_LV (inverse G) (E_final ex) exVal_LV f_LV con_BVFg (con_BVFa) p_true
     printfn("\n")
     Map.iter (fun q state ->
         printf("q%A:\t") q
-        (Set.iter (fun (x,s) -> printf("%s " ) x) state)
+        (Set.iter (fun x -> printf("%s " ) x) state)
         printfn("")
         ) res
     printFooter G
@@ -51,8 +51,8 @@ let liveVariables G ex =
 let rec condenseState err toString state = function
     | []        -> Set.empty
     | var::xs   ->
-        let varSet,extract = Set.partition (fun (x,signs,o,cstr) -> x=var ) state
-        let conVarSet = Set.fold (fun rst (x,sign,o,cstr) -> Set.add (x,sign) rst ) Ø varSet
+        let varSet,extract = Set.partition (fun (x,signs,cstr) -> x=var ) state
+        let conVarSet = Set.fold (fun rst (x,sign,cstr) -> Set.add (x,sign) rst ) Ø varSet
         Set.add (var,(Set.foldBack (fun (x,s) rst ->
             match s with
             | e when e=err      -> "err."
@@ -78,12 +78,12 @@ let detectionOfSignsAnalysis G p ex =
 let rec mergeIntervals state = function
     | []        -> Set.empty
     | var::xs   ->
-        let varSet,extract = Set.partition (fun (x,signs,o,cstr) -> x=var ) state
-        let conVarSet = Set.fold (fun rst (v,i,o,c) -> Set.add (v,i) rst ) Ø varSet
+        let varSet,extract = Set.partition (fun (x,signs,cstr) -> x=var ) state
+        let conVarSet = Set.fold (fun rst (v,i,c) -> Set.add (v,i) rst ) Ø varSet
         Set.add (var,(Set.fold (fun rst (v,i) -> rst+i ) Empty conVarSet)) (mergeIntervals extract xs)
 let intervalAnalysis G p ex =
     printfn"\nInterval analysis"
-    let Li = ((btm_I G),(top_I G),order_I)
+    let Li = ((btm_I G),(top_I G),lob_I,dif_I)
     let policySatisfied = p_I p
     let (res,sat) = MFP (L_I G) G (E_initial ex) (exVal_I G p) (f_I MAX (Li,(Lc G))) (con_Ig (Lci ob_I G)) con_Ia policySatisfied
     let conRes = Map.fold (fun rst q (s,c) ->
@@ -96,7 +96,6 @@ let intervalAnalysis G p ex =
         ) conRes
     printFooter G
     printPolicy p sat
-
 
 let parityAnalysis G p ex =
     printfn"\n Parity analysis"

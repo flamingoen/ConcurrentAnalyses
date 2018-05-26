@@ -13,55 +13,69 @@ let lb_I = Empty
 let btm_I G =
     let vars = removeLocalVars (varsInGraph G)
     let chans = channelsInGraph G
-    Set.fold (fun rst var -> if isLocal var then Set.add (var,lb_I,Local,Ø) rst else Set.add (var,lb_I,Global,Ø) rst ) Ø (vars)
-let top_I G = Set.fold (fun rst var ->
-    if isLocal var then Set.add (var,ob_I,Local,Ø) rst else Set.add (var,ob_I,Global,Ø) rst ) Ø (varsInGraph G)
-let order_I s1 s2 =
-     let map = Set.fold (fun rst (var,(i:interval),o,c) -> Map.add (var,o,c) i rst ) Map.empty s1
-     let newMap = Set.fold (fun rst (var,i,o,c) ->
-         match Map.tryFind (var,o,c) map with
-         | None -> (Map.add (var,o,c) i rst)
-         | Some(i') -> Map.add (var,o,c) (i+i') rst ) map s2
-     Map.fold (fun rst (var,o,c) i -> Set.add (var,i,o,c) rst ) Ø newMap
+    Set.fold (fun rst var -> Set.add (var,lb_I,Ø) rst ) Ø (vars)
 
-let order_IC (i1,c1) (i2,c2) = ((order_I i1 i2),(Set.intersect c1 c2))
-let L_I G = (((btm_I G),(btm_Ci G ob_I)),((top_I G),Ø),order_IC)
+let top_I G = Set.fold (fun rst var -> Set.add (var,ob_I,Ø) rst ) Ø (varsInGraph G)
 
-let ruleToInterval = function
-    | R_Pl     -> I(MAX,(max 1 MIN))
-    | R_Mi     -> I((min -1 MAX),MIN)
-    | R_Zr     -> I(0,0)
-    | R_Grt(n) -> I( MAX , (min (max (n+1) MIN) MAX) )
-    | R_Lt(n)  -> I( (max (min (n-1) MAX) MIN) , MIN )
-    | R_Eq(n)  -> I(n,n)
-    | _        -> ob_I
+let lob_I s1 s2 =
+     let map = Set.fold (fun rst (var,(i:interval),c) -> Map.add (var,c) i rst ) Map.empty s1
+     let newMap = Set.fold (fun rst (var,i,c) ->
+         match Map.tryFind (var,c) map with
+         | None -> (Map.add (var,c) i rst)
+         | Some(i') -> Map.add (var,c) (i+i') rst ) map s2
+     Map.fold (fun rst (var,c) i -> Set.add (var,i,c) rst ) Ø newMap
+
+let dif_I s1 s2 =
+    let map = Set.fold (fun rst (var,(i:interval),c) -> Map.add (var,c) i rst ) Map.empty s1
+    let newMap = Set.fold (fun rst (var,i,c) ->
+        match Map.tryFind (var,c) map with
+        | None -> (Map.add (var,c) i rst)
+        | Some(i') -> Map.add (var,c) (i .- i') rst ) map s2
+    Map.fold (fun rst (var,c) i -> Set.add (var,i,c) rst ) Ø newMap
+
+let lob_IC (i1,c1) (i2,c2) = ((lob_I i1 i2),(Set.intersect c1 c2))
+let dif_IC (i1,c1) (i2,c2) = ((dif_I i1 i2),(Set.difference c1 c2))
+
+let L_I G = (((btm_I G),(btm_Ci G ob_I)),((top_I G),Ø),lob_IC,dif_IC)
+
+let intervalOf x state = Set.fold (fun r (v,i,c) -> if v=x then r+i else r ) Empty state
+
+let ruleToInterval state = function
+    | R_Pl      -> I(MAX,(max 1 MIN))
+    | R_Mi      -> I((min -1 MAX),MIN)
+    | R_Zr      -> I(0,0)
+    | R_Grt(n)  -> I( MAX , (min (max (n+1) MIN) MAX) )
+    | R_Lt(n)   -> I( (max (min (n-1) MAX) MIN) , MIN )
+    | R_Eq(n)   -> I(n,n)
+    | R_Grtx(x) -> (intervalOf x state)+I(MAX,MAX)
+    | R_Ltx(x)  -> (intervalOf x state)+I(MIN,MIN)
+    | R_Eqx(x)  -> intervalOf x state
+    | _         -> ob_I
 
 let exVal_I G p =
     let vars = (removeLocalVars (varsInGraph G)) + (channelsInGraph G)
     let policyMap = List.fold (fun xs (Policy(v,r)) ->
         match Map.tryFind v xs with
-        | Some(i) -> Map.add v (i-(ruleToInterval r)) xs
-        | None    -> Map.add v (ruleToInterval r) xs ) Map.empty p
+        | Some(i) -> Map.add v (i-(ruleToInterval (top_I G) r)) xs
+        | None    -> Map.add v (ruleToInterval (top_I G) r) xs ) Map.empty p
     let polic = Map.fold (fun xs v i ->
         if Set.contains v vars then
-            Set.add (v,i,Initial,Ø) xs
+            Set.add (v,i,Ø) xs
         else xs ) Ø policyMap
     let exclVars = (List.fold (fun xs (Policy(v,r)) -> Set.add v xs ) Ø p)+ (channelsInGraph G)
-    let eI = Set.fold (fun rst var -> (Set.ofList [(var,ob_I,Initial,Ø)])+rst) polic (vars-exclVars)
+    let eI = Set.fold (fun rst var -> (Set.ofList [(var,ob_I,Ø)])+rst) polic (vars-exclVars)
     (eI,exVal_C)
 
-let con_Ig Lc id (s1,c1) (s2,c2) c =
-    let cs = Map.fold (fun r id' s -> if id'=id then r else (order_I r s) ) Ø c
-    let S = removeOrigin (Set.filter (fun (v,i,o,c) -> o=Global ) s2)
-    let cs' = Set.fold (fun rst (v,s,o,c) ->
-        let c' = removeOrigin c
-        if Set.intersect S c' = c' then Set.add (v,s,o,c) rst else rst ) Ø cs
-    (cs',(btm Lc))
-let con_Ia id (s1,c1) (s2,c2) c =
-    let s' =  Set.fold (fun rst (v,i,o,c') -> if o=Global && not(i=Empty) then Set.add (v,i,Concurrent,c') rst else rst ) Set.empty (order_I s1 s2)
+let con_Ig Lc id (Ss,Cs) c =
+    let cs = Map.fold (fun r id' s -> if id'=id then r else (lob_I r s) ) Ø c
+    //let cs' = Set.fold (fun rst (v,s,c) ->
+    //    if Set.intersect (dif_I s2  s1) c = c then Set.add (v,s,c) rst else rst ) Ø cs
+    (cs,(btm Lc))
+
+let con_Ia (Ss,Sc) (qs,a,qt,id) c =
     match Map.tryFind id c with
-        | Some(s) -> Map.add id (order_I s' s) c
-        | None    -> Map.add id s' c
+        | Some(s) -> Map.add id (lob_I Ss s) c
+        | None    -> Map.add id Ss c
 
 let plus = function
     | (Undefined,_)         -> Undefined
@@ -143,10 +157,6 @@ let _not = function
     | True -> Set.ofList [False]
     | _ -> Set.ofList [True]
 
-
-let intervalOf x state =
-    Set.fold (fun rst (v,i,o,c) -> if v=x then rst+i else rst ) Empty state
-
 let rec A_I state = function
     | Node(X(x),_)          -> intervalOf x state
     | Node(A(arr),_)        -> intervalOf arr state
@@ -173,16 +183,15 @@ let rec B_I state = function
     | Node(a,_)             -> failwith("In Bs: unknown match for action "+(string a))
 
 let update x interval c state =
-    let rSet = Set.filter (fun (v,i,o,c') -> not (v=x) ) state
-    if isLocal x then Set.add (x,interval,Local,c) rSet
-    else Set.add (x,interval,Global,c) rSet
+    let rSet = Set.filter (fun (v,i,c') -> not (v=x) ) state
+    Set.add (x,interval,c) rSet
 
-let splitIntervalSet s inter = Set.fold (fun rst (v,i,o,c) ->
+let splitIntervalSet s inter = Set.fold (fun rst (v,i,c) ->
     match i with
-    | I(mx,mn) -> (List.fold (fun rst' j -> Set.add (v,I((min (j+inter) mx),j),o,c) rst' ) Ø [mn ..inter.. mx])+rst
-    | _          -> Set.add (v,i,o,c) rst ) Ø s
+    | I(mx,mn) -> (List.fold (fun rst' j -> Set.add (v,I((min (j+inter) mx),j),c) rst' ) Ø [mn ..inter.. mx])+rst
+    | _          -> Set.add (v,i,c) rst ) Ø s
 
-let mergeIntervalSet s = Set.fold (fun rst e -> order_I (Set.ofList [e]) rst) Ø s
+let mergeIntervalSet s = Set.fold (fun rst e -> lob_I (Set.ofList [e]) rst) Ø s
 
 let f_I splitInterval (Li,Lc) (Ss,Sc) (qs,a,qt,id) =
     let Sc' = f_C B_I Li Lc (splitIntervalSet Ss splitInterval) Sc (qs,a,qt,id)
@@ -209,9 +218,9 @@ let f_I splitInterval (Li,Lc) (Ss,Sc) (qs,a,qt,id) =
 
 let p_I p (s,c) =
     List.forall (fun (Policy(v,r)) ->
-        let rule = (ruleToInterval r)
-        let exists = Set.fold (fun xs (v',i,o,c) -> v=v' || xs ) false s
-        Set.fold (fun xs (v',i,o,c) -> v=v' && (Set.contains True (equal (i,rule)) ) || xs ) (not exists) s ) p
+        let rule = (ruleToInterval s r)
+        let exists = Set.fold (fun xs (v',i,c) -> v=v' || xs ) false s
+        Set.fold (fun xs (v',i,c) -> v=v' && (Set.contains True (equal (i,rule)) ) || xs ) (not exists) s ) p
 
 // (Set.contains True (equal (i,rule)) )
 // (rule+i = rule)

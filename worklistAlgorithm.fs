@@ -58,21 +58,21 @@ let rec MFP2 cons Aa c p W =
     match extract W with
     | None ->
         let r = List.fold (fun rst (q,id) ->
-            Map.add q ( lob (Map.find q rst) (con_g id (btm L) (btm L) c) L ) rst ) Aa E
+            Map.add q ( lob (Map.find q rst) (con_g id (btm L) c) L ) rst ) Aa E
         (r,p)
     | Some((qs,a,qt,id),xs) ->
         printStep (qs,a,qt,id) xs
         let sqs = (Map.find qs Aa)
         let sqt = (Map.find qt Aa)
         let newA = f sqs (qs,a,qt,id)
-        let s' = lob (newA) (con_g id sqs newA c) L
+        let s' = lob (newA) (con_g id newA c) L
         let analysisChanged = (not (subeq s' sqt L))
         updateStats xs
         if analysisChanged then
             let sqt' = (lob s' sqt L)
             let Aa' = (Map.add qt sqt' Aa)
             let W' = newW G (qs,a,qt,id) xs insert G
-            let c' = con_a id sqs newA c
+            let c' = con_a (dif newA sqs L) (qs,a,qt,id) c
             let p' = Map.add qt (policySatisfied sqt') p
             MFP2 cons Aa' c' p' W'
         else MFP2 cons Aa c p xs
@@ -81,6 +81,5 @@ let MFP L G E i f con_g con_a ps =
     let Q = allNodes G
     let A = initA Q L E i
     let W = workList_list G
-    let cons = (L,E,f,con_g,con_a,G,appendBack_list,extract_list)
-    MFP2 (L,E,f,con_g,con_a,G,appendBack_list,extract_list,ps) A Map.empty Map.empty W
-    ;;
+    let cons = (L,E,f,con_g,con_a,G,appendBack_list,extract_list,ps)
+    MFP2 cons A Map.empty Map.empty W
