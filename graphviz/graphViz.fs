@@ -10,6 +10,7 @@ let rec nodeToString = function
     | Node(a,a1::a2::[]) when (op.ContainsKey a) ->
         (nodeToString a1) + op.[a] + (nodeToString a2)
     | Node(Skip,[])             -> "skip"
+    | Node(Crit,[])             -> "crit"
     | Node(True,[])             -> "true"
     | Node(False,[])            -> "false"
     | Node(Not,[Node(True,_)])  -> "false"
@@ -25,25 +26,25 @@ let labelToString set = Set.fold (fun rst (q:int) -> rst+"q"+(string q)) "" set
 let rec graphToGraphviz = function
     | []               -> ""
     | (qs,tree,qt,id)::xs ->
-        "" + (labelToString qs) + " -> " + (labelToString qt) + " [label = \""+(nodeToString tree)+"\"];\n"  + (graphToGraphviz xs)
+        "" + (labelToString qs) + " -> " + (labelToString qt) + " [fontsize=11,label = \" "+(nodeToString tree)+" \"];\n"  + (graphToGraphviz xs)
 
 let generateInitVals inits =
-    let header = "node [shape = circle, fillcolor=PaleGreen3];"
+    let header = "node [shape = circle, fillcolor=PaleGreen3,fontsize=11];"
     let nodeString = Set.fold (fun rst q -> q+";"+rst) "" inits
     header + nodeString + "\n"
     ;;
 
 let generateEndVals ends =
-    let header = "node [shape = doublecircle fillcolor=SkyBlue2, style=filled];"
+    let header = "node [shape = doublecircle fillcolor=SkyBlue2, style=filled,fontsize=11];"
     let nodeString = Set.fold (fun rst q -> q+";"+rst) "" ends
     header + nodeString + "\n"
     ;;
 
 let printGraphviz path graph initVals endVals =
-    let header = "digraph program_graph {rankdir=LR;\n"
+    let header = "digraph program_graph {rankdir=TB; \n"
     let endNodes = ( generateEndVals endVals )
     let initNodes = ( generateInitVals initVals )
-    let nodes = "node [shape = circle, fillcolor=LightGray]"
+    let nodes = "node [shape = circle, fillcolor=lightgrey,fontsize=11]"
     let graphviz = (header+endNodes+initNodes+nodes+(graphToGraphviz graph)+"}")
     File.WriteAllText(path, graphviz) ;;
 
