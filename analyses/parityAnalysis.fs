@@ -2,9 +2,10 @@ module ParityAnalysis
 
 open Defines
 open ConstraintAnalysis
+open IntegerAnalysis
 open ProgramGraphs
 
-let parityOf x state = Set.fold (fun rst (y,parity,c) -> if y=x then Set.add parity rst else rst ) Set.empty state
+let parityOf x state = Set.fold (fun rst (y,parity) -> if y=x then Set.add parity rst else rst ) Set.empty state
 
 let plus = function
     | Odd,Odd   -> Set.ofList [Even]
@@ -57,17 +58,11 @@ let rec Bp state = function
 
 let top_p G =
     let vars = varsInGraph G
-    Set.fold (fun rst var -> (Set.ofList [(var,Even,Ø);(var,Odd,Ø)])+rst ) Ø vars
+    Set.fold (fun rst var -> (Set.ofList [(var,Even);(var,Odd)])+rst ) Ø vars
 
 let Lp G =
     let lob s1 s2 = Set.(+) (s1,s2)
-    let dif s1 s2 = Set.difference s1 s2
-    (Ø,(top_p G),lob,dif)
-
-let lob_p (s1,c1) (s2,c2) = ((Set.union s1 s2),(Set.intersect c1 c2))
-let dif_p (s1,c1) (s2,c2) = ((Set.difference s1 s2),(Set.difference c1 c2))
-
-let Lpc G = ((Ø,(btm_Cp G)),((top_p G),Ø),lob_p,dif_p)
+    (Ø,(top_p G),lob)
 
 let ruleToParity = function
     | R_Even -> Set.ofList [Even]
@@ -78,53 +73,53 @@ let exVal_p G p =
     let vars = (removeLocalVars (varsInGraph G))+(channelsInGraph G)
     let polic = List.fold (fun xs (Policy(v,r)) ->
         if Set.contains v vars then
-            Set.fold (fun xs' sign -> Set.add (v,sign,Ø) xs' ) xs (ruleToParity r)
+            Set.fold (fun xs' sign -> Set.add (v,sign) xs' ) xs (ruleToParity r)
         else xs ) Ø p
     let exclVars = List.fold (fun xs (Policy(v,r)) -> Set.add v xs ) Ø p
-    let ex_p = Set.fold (fun rst var ->
-        (Set.ofList [(var,Even,Ø);(var,Odd,Ø)])+rst) polic (vars-exclVars)
-    (ex_p,exVal_C)
+    Set.fold (fun rst var -> (Set.ofList [(var,Even);(var,Odd)])+rst) polic (vars-exclVars)
 
-let con_pg Lc id (Ss,Sc) c =
-    let cs = Map.fold (fun r id' s -> if id'=id then r else r+s ) Set.empty c
-    let cs' = Set.fold (fun rst (v,s,cst) ->
-        if (Set.intersect (rmConstraint Ss) cst) = cst then Set.add (v,s,Sc) rst else rst ) Set.empty cs
-    (cs',(btm Lc))
+let ConstraintSatisfied cr Ss =
+    if Set.isEmpty cr then true
+    else Set.fold (fun r' inner -> r' || Set.fold (fun r cnstr -> (Set.contains True (Bp Ss cnstr)) && r) true inner ) false cr
 
-let con_pa (Ss,Sc) (qs,a,qt,id) c =
-    let s' = match a with
-                | Node( Assign, Node(X(x),_)::fu::[] )  -> Set.fold (fun r par -> Set.add (x,par,Sc) r ) Ø (Ap Ss fu)
-                | Node( Assign, Node(A(ar),l)::fu::[] ) -> Set.fold (fun r par -> Set.add (ar,par,Sc) r ) Ø (Ap Ss fu)
-                | Node( Decl,   Node(X(x),_)::xs )      -> Set.ofList [(x,Even,Sc)]
-                | Node( Decl,   Node(A(ar),l)::xs)      -> Set.ofList [(ar,Odd,Sc)]
-                | Node( Send,   Node(C(ch),_)::x::xs)   -> Set.fold (fun r par -> Set.add (ch,par,Sc) r ) Ø (Ap Ss x)
-                | Node( Recv,   ch::Node(X(x),_)::xs)   -> Set.fold (fun r par -> Set.add (x,par,Sc) r ) Ø (Ap Ss ch)
-                | Node( Recv,   ch::Node(A(ar),l)::xs)  -> Set.fold (fun r par -> Set.add (ar,par,Sc) r ) Ø (Ap Ss ch)
+let con_pg id Ss c =
+    let t = Map.fold (fun r id' s -> if id'=id then r else r+s ) Ø c
+    Set.fold(fun r (s,cr) -> if ConstraintSatisfied cr Ss then Set.add s r else r ) Ø t
+
+let con_pa cr Ss (qs,a,qt,id) c =
+    let t = match a with
+                | Node( Assign, Node(X(x),_)::fu::[] )  -> Set.fold (fun r par -> Set.add (x,par) r ) Ø (Ap Ss fu)
+                | Node( Assign, Node(A(ar),l)::fu::[] ) -> Set.fold (fun r par -> Set.add (ar,par) r ) Ø (Ap Ss fu)
+                | Node( Decl,   Node(X(x),_)::xs )      -> Set.ofList [(x,Even)]
+                | Node( Decl,   Node(A(ar),l)::xs)      -> Set.ofList [(ar,Odd)]
+                | Node( Send,   Node(C(ch),_)::x::xs)   -> Set.fold (fun r par -> Set.add (ch,par) r ) Ø (Ap Ss x)
+                | Node( Recv,   ch::Node(X(x),_)::xs)   -> Set.fold (fun r par -> Set.add (x,par) r ) Ø (Ap Ss ch)
+                | Node( Recv,   ch::Node(A(ar),l)::xs)  -> Set.fold (fun r par -> Set.add (ar,par) r ) Ø (Ap Ss ch)
                 | _                                     -> Ø
+    let s' = Set.fold(fun r s -> Set.add (s,(Map.find qs cr)) r) Ø t
     match Map.tryFind id c with
-        | Some(s) -> Map.add id (Set.union s Ss) c
-        | None    -> Map.add id Ss c
+        | Some(s) -> Map.add id (Set.union s s') c
+        | None    -> Map.add id s' c
 
-let update x p c state =
-    let rSet = Set.filter (fun (y,p,c') -> not (x=y) ) state
-    Set.fold (fun rst parity -> Set.add (x,parity,c) rst
+let update x p state =
+    let rSet = Set.filter (fun (y,p) -> not (x=y) ) state
+    Set.fold (fun rst parity -> Set.add (x,parity) rst
     ) rSet p
 
-let p_p p (s,c) =
+let p_p p s =
     List.forall (fun (Policy(v,r)) ->
-        Set.fold (fun xs (v',s,c) -> v=v' && Set.contains s (ruleToParity r) || xs ) false s ) p
+        Set.fold (fun xs (v',s) -> v=v' && Set.contains s (ruleToParity r) || xs ) false s ) p
 
-let f_p (Lp,Lc) (Sp,Sc) (qs,a,qt,id) =
-    let Sc' = f_C Bp Lp Lc Sp Sc (qs,a,qt,id)
+let f_p Sp (qs,a,qt,id) =
     match a with
-    | Node( Assign, Node(X(x),_)::fu::[] )  -> ((update x (Ap Sp fu) Sc Sp),Sc')
-    | Node( Assign, Node(A(ar),l)::fu::[] ) -> ((update ar (Ap Sp fu+(Ap Sp (Node(A(ar),l)))) Sc Sp),Sc')
-    | Node( Decl,   Node(X(x),_)::xs )      -> ((update x (Set.ofList [Even]) Sc Sp),Sc')
-    | Node( Decl,   Node(A(ar),l)::xs)      -> ((update ar ((Ap Sp (Node(A(ar),l)))+(Set.ofList [Even])) Sc Sp),Sc')
-    | Node( Send,   Node(C(ch),_)::x::xs)   -> ((update ch (Ap Sp x) Sc Sp),Sc')
-    | Node( Recv,   ch::Node(X(x),_)::xs)   -> ((update x (Ap Sp ch) Sc Sp),Sc')
-    | Node( Recv,   ch::Node(A(ar),l)::xs)  -> ((update ar ( (Ap Sp ch) + (Ap Sp (Node(A(ar),l))) ) Sc Sp),Sc')
-    | _ -> (Sp,Sc')
+    | Node( Assign, Node(X(x),_)::fu::[] )  -> (update x (Ap Sp fu) Sp)
+    | Node( Assign, Node(A(ar),l)::fu::[] ) -> (update ar (Ap Sp fu+(Ap Sp (Node(A(ar),l)))) Sp)
+    | Node( Decl,   Node(X(x),_)::xs )      -> (update x (Set.ofList [Even]) Sp)
+    | Node( Decl,   Node(A(ar),l)::xs)      -> (update ar ((Ap Sp (Node(A(ar),l)))+(Set.ofList [Even])) Sp)
+    | Node( Send,   Node(C(ch),_)::x::xs)   -> (update ch (Ap Sp x) Sp)
+    | Node( Recv,   ch::Node(X(x),_)::xs)   -> (update x (Ap Sp ch) Sp)
+    | Node( Recv,   ch::Node(A(ar),l)::xs)  -> (update ar ( (Ap Sp ch) + (Ap Sp (Node(A(ar),l))) ) Sp)
+    | _ -> Sp
 
 let parityToString = function
     | Odd -> "o"

@@ -2,6 +2,7 @@ module IntervalAnalysis
 
 open Defines
 open ConstraintAnalysis
+open IntegerAnalysis
 open ProgramGraphs
 
 let MAX = 100
@@ -10,35 +11,20 @@ let MIN = -100
 let ob_I = I(MAX,MIN)
 let lb_I = Undefined
 
-let btm_I G = Ø
-    //let vars = removeLocalVars (varsInGraph G)
-    //let chans = channelsInGraph G
-    //Set.fold (fun rst var -> Set.add (var,lb_I,Ø) rst ) Ø (vars)
-
-let top_I G = Set.fold (fun rst var -> Set.add (var,ob_I,Ø) rst ) Ø (varsInGraph G)
+let btm_I = Ø
+let top_I G = Set.fold (fun rst var -> Set.add (var,ob_I) rst ) Ø (varsInGraph G)
 
 let lob_I s1 s2 =
-     let map = Set.fold (fun rst (var,(i:interval),c) -> Map.add (var,c) i rst ) Map.empty s1
-     let newMap = Set.fold (fun rst (var,i,c) ->
-         match Map.tryFind (var,c) map with
-         | None -> (Map.add (var,c) i rst)
-         | Some(i') -> Map.add (var,c) (i+i') rst ) map s2
-     Map.fold (fun rst (var,c) i -> Set.add (var,i,c) rst ) Ø newMap
+     let map = Set.fold (fun rst (var,(i:interval)) -> Map.add var i rst ) Map.empty s1
+     let newMap = Set.fold (fun rst (var,i) ->
+         match Map.tryFind var map with
+         | None -> (Map.add var i rst)
+         | Some(i') -> Map.add var (i+i') rst ) map s2
+     Map.fold (fun rst var i -> Set.add (var,i) rst ) Ø newMap
 
-let dif_I s1 s2 =
-    let map = Set.fold (fun rst (var,(i:interval),c) -> Map.add (var,c) i rst ) Map.empty s1
-    let newMap = Set.fold (fun rst (var,i,c) ->
-        match Map.tryFind (var,c) map with
-        | None -> (Map.add (var,c) i rst)
-        | Some(i') -> Map.add (var,c) (i .- i') rst ) map s2
-    Map.fold (fun rst (var,c) i -> Set.add (var,i,c) rst ) Ø newMap
+let L_I G = (btm_I,(top_I G),lob_I)
 
-let lob_IC (i1,c1) (i2,c2) = ((lob_I i1 i2),(Set.intersect c1 c2))
-let dif_IC (i1,c1) (i2,c2) = ((dif_I i1 i2),(Set.difference c1 c2))
-
-let L_I G = (((btm_I G),(btm_Ci G ob_I)),((top_I G),Ø),lob_IC,dif_IC)
-
-let intervalOf x state = Set.fold (fun r (v,i,c) -> if v=x then r+i else r ) Empty state
+let intervalOf x state = Set.fold (fun r (v,i) -> if v=x then r+i else r ) Empty state
 
 let ruleToInterval state = function
     | R_Pl      -> I(MAX,(max 1 MIN))
@@ -60,11 +46,10 @@ let exVal_I G p =
         | None    -> Map.add v (ruleToInterval (top_I G) r) xs ) Map.empty p
     let polic = Map.fold (fun xs v i ->
         if Set.contains v vars then
-            Set.add (v,i,Ø) xs
+            Set.add (v,i) xs
         else xs ) Ø policyMap
     let exclVars = (List.fold (fun xs (Policy(v,r)) -> Set.add v xs ) Ø p)+ (channelsInGraph G)
-    let eI = Set.fold (fun rst var -> (Set.ofList [(var,ob_I,Ø)])+rst) polic (vars-exclVars)
-    (eI,exVal_C)
+    Set.fold (fun rst var -> (Set.ofList [(var,ob_I)])+rst) polic (vars-exclVars)
 
 let plus = function
     | (Undefined,_)         -> Undefined
@@ -171,57 +156,57 @@ let rec B_I state = function
     | Node(Land,b1::b2::_)  -> magic (B_I state b1) (B_I state b2) _and
     | Node(a,_)             -> failwith("In Bs: unknown match for action "+(string a))
 
-let con_Ig Lc id (Ss,Sc) c =
-    let cs = Map.fold (fun r id' s -> if id'=id then r else (lob_I r s) ) Ø c
-    let cs' = Set.fold (fun rst (v,s,cst) ->
-        if (Set.intersect (rmConstraint Ss) cst) = cst then Set.add (v,s,Sc) rst else rst ) Set.empty cs
-    (cs',(btm Lc))
+let ConstraintSatisfied cr Ss =
+    if Set.isEmpty cr then true
+    else Set.fold (fun r' inner -> r' || Set.fold (fun r cnstr -> (Set.contains True (B_I Ss cnstr)) && r) true inner ) false cr
 
-let con_Ia (Ss,Sc) (qs,a,qt,id) c =
-    let s' = match a with
-                | Node( Assign, Node(X(x),_)::fu::[] )  -> Set.ofList [(x,(A_I Ss fu),Sc)]
-                | Node( Assign, Node(A(ar),l)::fu::[] ) -> Set.ofList [(ar,(A_I Ss fu),Sc)]
-                | Node( Decl,   Node(X(x),_)::xs )      -> Set.ofList [(x,I(0,0),Sc)]
-                | Node( Decl,   Node(A(ar),l)::xs)      -> Set.ofList [(ar,I(0,0),Sc)]
-                | Node( Send,   Node(C(ch),_)::x::xs)   -> Set.ofList [(ch,(A_I Ss x),Sc)]
-                | Node( Recv,   ch::Node(X(x),_)::xs)   -> Set.ofList [(x,(A_I Ss ch),Sc)]
-                | Node( Recv,   ch::Node(A(ar),l)::xs)  -> Set.ofList [(ar,(A_I Ss ch),Sc)]
-                | _ -> Ø
+let con_ig cr id Ss c =
+    let t = Map.fold (fun r id' s -> if id'=id then r else r+s ) Ø c
+    Set.fold(fun r (s,cr) -> if ConstraintSatisfied cr Ss then Set.add s r else r ) Ø t
+
+let con_ia cr Ss (qs,a,qt,id) c =
+    let t = match a with
+                | Node( Assign, Node(X(x),_)::fu::[] )  -> (x,(A_I Ss fu))
+                | Node( Assign, Node(A(ar),l)::fu::[] ) -> (ar,(A_I Ss fu))
+                | Node( Decl,   Node(X(x),_)::xs )      -> (x,I(0,0))
+                | Node( Decl,   Node(A(ar),l)::xs)      -> (ar,I(0,0))
+                | Node( Send,   Node(C(ch),_)::x::xs)   -> (ch,(A_I Ss x))
+                | Node( Recv,   ch::Node(X(x),_)::xs)   -> (x,(A_I Ss ch))
+                | Node( Recv,   ch::Node(A(ar),l)::xs)  -> (ar,(A_I Ss ch))
+                | _                                     -> ("",Empty)
+    let s' = if t = ("",Empty) then Ø else Set.ofList [(t,(Map.find qs cr))]
     match Map.tryFind id c with
-        | Some(s) -> Map.add id (lob_I s' s) c
+        | Some(s) -> Map.add id (Set.union s' s) c
         | None    -> Map.add id s' c
 
 let update x interval c state =
-    let rSet = Set.filter (fun (v,i,c') -> not (v=x) ) state
-    Set.add (x,interval,c) rSet
+    let rSet = Set.filter (fun (v,i) -> not (v=x) ) state
+    Set.add (x,interval) rSet
 
-let splitIntervalSet s inter = Set.fold (fun rst (v,i,c) ->
+let splitIntervalSet s inter = Set.fold (fun rst (v,i) ->
     match i with
-    | I(mx,mn) -> (List.fold (fun rst' j -> Set.add (v,I((min (j+inter) mx),j),c) rst' ) Ø [mn ..inter.. mx])+rst
-    | _          -> Set.add (v,i,c) rst ) Ø s
+    | I(mx,mn) -> (List.fold (fun rst' j -> Set.add (v,I((min (j+inter) mx),j)) rst' ) Ø [mn ..inter.. mx])+rst
+    | _          -> Set.add (v,i) rst ) Ø s
 
 let mergeIntervalSet s = Set.fold (fun rst e -> lob_I (Set.ofList [e]) rst) Ø s
 
-let f_I splitInterval (Li,Lc) (Ss,Sc) (qs,a,qt,id) =
-    let Sc' = f_C B_I Li Lc (splitIntervalSet Ss splitInterval) Sc (qs,a,qt,id)
+let f_I splitInterval Ss (qs,a,qt,id) =
     match a with
-    | Node( Assign, Node(X(x),_)::fu::[] )  -> (update x (A_I Ss fu) Ø Ss , Sc')
-    | Node( Assign, Node(A(ar),l)::fu::[] ) -> (update ar ((A_I Ss fu)+(A_I Ss (Node(A(ar),l)))) Ø Ss , Sc')
-    | Node( Decl,   Node(X(x),_)::xs )      -> (update x (I(0,0)) Ø Ss , Sc')
-    | Node( Decl,   Node(A(ar),l)::xs)      -> (update ar (I(0,0)) Ø Ss , Sc')
-    | Node( Send,   Node(C(ch),_)::x::xs)   -> (update ch (A_I Ss x) Ø Ss , Sc')
-    | Node( Recv,   ch::Node(X(x),_)::xs)   -> (update x (A_I Ss ch) Ø Ss , Sc')
-    | Node( Recv,   ch::Node(A(ar),l)::xs)  -> (update ar ((A_I Ss ch)+(A_I Ss (Node(A(ar),l)))) Ø Ss , Sc')
-    | Node( b, _ ) when isBoolOp b          ->
-        let Ss' = mergeIntervalSet (boolFilter B_I a (splitIntervalSet Ss splitInterval))
-        (Ss',Sc')
-    | _ -> (Ss , Sc')
+    | Node( Assign, Node(X(x),_)::fu::[] )  -> update x (A_I Ss fu) Ø Ss
+    | Node( Assign, Node(A(ar),l)::fu::[] ) -> update ar ((A_I Ss fu)+(A_I Ss (Node(A(ar),l)))) Ø Ss
+    | Node( Decl,   Node(X(x),_)::xs )      -> update x (I(0,0)) Ø Ss
+    | Node( Decl,   Node(A(ar),l)::xs)      -> update ar (I(0,0)) Ø Ss
+    | Node( Send,   Node(C(ch),_)::x::xs)   -> update ch (A_I Ss x) Ø Ss
+    | Node( Recv,   ch::Node(X(x),_)::xs)   -> update x (A_I Ss ch) Ø Ss
+    | Node( Recv,   ch::Node(A(ar),l)::xs)  -> update ar ((A_I Ss ch)+(A_I Ss (Node(A(ar),l)))) Ø Ss
+    | Node( b, _ ) when isBoolOp b          -> mergeIntervalSet (boolFilter B_I a (splitIntervalSet Ss splitInterval))
+    | _ -> Ss
 
-let p_I p (s,c) =
+let p_I p s =
     List.forall (fun (Policy(v,r)) ->
         let rule = (ruleToInterval s r)
-        let exists = Set.fold (fun xs (v',i,c) -> v=v' || xs ) false s
-        Set.fold (fun xs (v',i,c) -> v=v' && (Set.contains True (equal (i,rule)) ) || xs ) (not exists) s ) p
+        let exists = Set.fold (fun xs (v',i) -> v=v' || xs ) false s
+        Set.fold (fun xs (v',i) -> v=v' && (Set.contains True (equal (i,rule)) ) || xs ) (not exists) s ) p
 
 // (Set.contains True (equal (i,rule)) )
 // (rule+i = rule)

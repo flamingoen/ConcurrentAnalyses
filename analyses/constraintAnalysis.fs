@@ -1,61 +1,32 @@
 module ConstraintAnalysis
 
 open Defines
+open IntegerAnalysis
 open ProgramGraphs
 
-let varsIn state = Set.fold (fun rst (x,s,c) -> Set.add x rst ) Set.empty state
+let op = [Gt; Lt; Eq; Geq; Leq; Neq; True; False]
 
-let rec basic state = function
-    | []        -> [Set.empty]
-    | var::xs   ->
-        let varSet,extract = Set.partition (fun (x,e,c) -> x=var ) state
-        Set.fold (fun rst elem ->
-            List.fold (fun rst' subset -> (Set.add elem subset)::rst' ) [] (basic extract xs)@rst
-        ) [] varSet
+let rec Bp tree =
+    match tree with
+    | Node(Not,b1::_)       ->  Ø //Implement god dammit!
+    | Node(Lor,b1::b2::_)   -> (Bp b1)+(Bp b2)
+    | Node(Land,b1::b2::_)  ->
+        Set.fold (fun r s -> (Set.fold (fun r' s' -> Set.add (s'+s) r' ) Ø (Bp b2)) + r ) Ø (Bp b1)
+    | Node(a,_) when (List.contains a op) -> Set.add (Set.ofList [tree]) Ø
+    | _     -> failwith("Unsupported action in Bp")
 
-let boolFilter bFunc b state =
-    let basicList = basic state (Set.toList (varsIn state))
-    List.fold (fun rst state' ->
-        if (Set.contains True (bFunc state' b)) then state' + rst
-        else rst
-    ) Set.empty basicList
+let exVal_C evali = (evali,Ø)
+let btm_C L G =
+    let t = List.filter (fun (qs,Node(a,_),qt,id) -> List.contains a op) G
+    let t' = List.fold (fun r (qs,b,qt,id) -> r + (Bp b) ) Ø t
+    (btm L,t')
+let top_C L = (top L,Ø)
+let lob_C L (s1,c1) (s2,c2) = ( (lob s1 s2 L) , (Set.intersect c1 c2) )
+let Lc Ls G = (btm_C Ls G ,top_C Ls,lob_C Ls)
 
-let rmConstraint set = Set.fold (fun rst (v,s,c) -> Set.add (v,s) Ø ) Ø set
-
-let exVal_C = Ø
-
-let btm_C G = Set.fold (fun rst var -> (Set.ofList [(var,Pos);(var,Neg);(var,Zero)]) + rst ) Ø (varsInGraph G)
-
-let btm_Ci G i = Set.fold (fun rst var -> Set.add (var,i) rst ) Ø (varsInGraph G)
-
-let btm_Cp G = Set.fold (fun rst var -> (Set.ofList [(var,Odd);(var,Even)]) + rst ) Ø (varsInGraph G)
-
-let Lci i G =
-    let lob s1 s2 = Set.intersect s1 s2
-    let dif s1 s2 = Set.difference s1 s2
-    ((btm_Ci G i),Ø,lob,dif)
-
-let Lcp G =
-    let order s1 s2 = Set.intersect s1 s2
-    let dif s1 s2 = Set.difference s1 s2
-    ((btm_Cp G),Ø,lob,dif)
-
-let Lc G =
-    let order s1 s2 = Set.intersect s1 s2
-    let dif s1 s2 = Set.difference s1 s2
-    ((btm_C G),Ø,lob,dif)
-
-let con_Cg id s1 s2 c = Map.find id c
-let con_Ca id s1 s2 c =
-    let s' =  Set.fold (fun rst (v,s) -> Set.add (v,s) rst ) Set.empty (s2-s1)
-    match Map.tryFind id c with
-        | Some(s) -> Map.add id (s'+s) c
-        | None    -> Map.add id s' c
-
-let f_C bFunc Ls Lc Ss Sc (qs,a,qt,id) =
+let Fc fi Bi (Si,Sc) (qs,a,qt,id) =
     match a with
     | Node( b, _ ) when isBoolOp b ->
-        let vars = varsInA a
-        let filtered = Set.filter (fun (x,s) -> (Set.contains x vars)) (rmConstraint ( boolFilter bFunc a (top Ls) ))
-        (filtered - (rmConstraint Ss) + Sc)
-    | _ -> Sc
+        let Sc' = Set.filter ( Set.fold (fun r s -> r && not (Set.contains True (Bi Si s) ) ) true  ) (Bp a)
+        (fi Si (qs,a,qt,id),Set.union Sc Sc')
+    | _ -> (fi Si (qs,a,qt,id),Sc)

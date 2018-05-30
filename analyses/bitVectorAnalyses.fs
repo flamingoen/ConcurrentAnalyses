@@ -20,8 +20,7 @@ let top_RD G =
     vCombo
 
 let lob_RD s1 s2 = Set.(+) (s1,s2)
-let dif_BVF s1 s2 = Set.difference s1 s2
-let L_RD G = (Ø,(top_RD G),lob_RD,dif_BVF)
+let L_RD G = (Ø,(top_RD G),lob_RD)
 
 let exVal_RD G non =
     Set.fold (fun rst var -> Set.add (var,non,non) rst) Set.empty (removeLocalVars (varsInGraph G))
@@ -62,7 +61,7 @@ let f_RD state t = BVF (kill_RD) (gen_RD) state t
 // #### Live variables ####
 
 let lob_LV s1 s2 = Set.(+) (s1,s2)
-let L_LV = (Ø,Ø,lob_LV,dif_BVF)
+let L_LV = (Ø,Ø,lob_LV)
 let exVal_LV = Set.empty
 
 let rec FV = function

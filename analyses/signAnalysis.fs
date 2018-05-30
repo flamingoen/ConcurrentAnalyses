@@ -3,9 +3,10 @@ module SignAnalysis
 open Defines
 open TablesSign
 open ConstraintAnalysis
+open IntegerAnalysis
 open ProgramGraphs
 
-let signOf x state = Set.fold (fun rst (y,sign,c) -> if y=x then Set.add sign rst else rst ) Set.empty state
+let signOf x state = Set.fold (fun rst (y,sign) -> if y=x then Set.add sign rst else rst ) Set.empty state
 
 let rec Ac state = function
     | Node(X(x),_)          -> signOf x state
@@ -52,18 +53,13 @@ let ruleToSign = function
 
 let top_s G =
     let vars = (removeLocalVars (varsInGraph G))+(channelsInGraph G)
-    Set.fold (fun rst var -> (Set.ofList [(var,Zero,Ø);(var,Pos,Ø);(var,Neg,Ø)])+rst ) Ø vars
+    Set.fold (fun rst var -> (Set.ofList [(var,Zero);(var,Pos);(var,Neg)])+rst ) Ø vars
 
 let Ls G =
     let lob s1 s2 = Set.(+) (s1,s2)
-    let dif s1 s2 = Set.difference s1 s2
-    (Ø,(top_s G),lob,dif)
+    (Ø,(top_s G),lob)
 
-let lob_CS (s1,c1) (s2,c2) = ((Set.union s1 s2),(Set.intersect c1 c2))
-let dif_CS (s1,c1) (s2,c2) = ((Set.difference s1 s2),(Set.difference c1 c2))
-let Lcs G = ((Ø,(btm_C G)),((top_s G),Ø),lob_CS,dif_CS)
-
-let exVal_CS G p =
+let exVal_s G p =
     let vars = (removeLocalVars (varsInGraph G))+(channelsInGraph G)
     let policyMap = List.fold (fun xs (Policy(v,r)) ->
         match Map.tryFind v xs with
@@ -71,53 +67,53 @@ let exVal_CS G p =
         | Some(s) when Set.isEmpty ( Set.intersect s (ruleToSign r) ) -> Map.add v ( Set.ofList [S_Undefined]) xs
         | Some(s) ->  Map.add v ( Set.intersect s (ruleToSign r) ) xs ) Map.empty p
     let polic = Map.fold (fun xs v s ->
-        if Set.contains v vars then Set.fold (fun xs' sign -> Set.add (v,sign,Ø) xs' ) xs s
+        if Set.contains v vars then Set.fold (fun xs' sign -> Set.add (v,sign) xs' ) xs s
         else xs ) Ø policyMap
     let exclVars = List.fold (fun xs (Policy(v,r)) -> Set.add v xs ) Ø p
-    let ex_s = Set.fold (fun rst var ->
-        (Set.ofList [(var,Zero,Ø);(var,Pos,Ø);(var,Neg,Ø)])+rst ) polic (vars-exclVars)
-    (ex_s,exVal_C)
+    Set.fold (fun rst var -> (Set.ofList [(var,Zero);(var,Pos);(var,Neg)])+rst ) polic (vars-exclVars)
 
-let con_CSa (Ss,Sc) (qs,a,qt,id) c =
-    let s' = match a with
-                | Node( Assign, Node(X(x),_)::fu::[] )  -> Set.fold (fun r sign -> Set.add (x,sign,Sc) r ) Ø (Ac Ss fu)
-                | Node( Assign, Node(A(ar),l)::fu::[] ) -> Set.fold (fun r sign -> Set.add (ar,sign,Sc) r ) Ø (Ac Ss fu)
-                | Node( Decl,   Node(X(x),_)::xs )      -> Set.ofList [(x,Zero,Sc)]
-                | Node( Decl,   Node(A(ar),l)::xs)      -> Set.ofList [(ar,Zero,Sc)]
-                | Node( Send,   Node(C(ch),_)::x::xs)   -> Set.fold (fun r sign -> Set.add (ch,sign,Sc) r ) Ø (Ac Ss x)
-                | Node( Recv,   ch::Node(X(x),_)::xs)   -> Set.fold (fun r sign -> Set.add (x,sign,Sc) r ) Ø (Ac Ss ch)
-                | Node( Recv,   ch::Node(A(ar),l)::xs)  -> Set.fold (fun r sign -> Set.add (ar,sign,Sc) r ) Ø (Ac Ss ch)
+let con_sa cr Ss (qs,a,qt,id) c =
+    let t = match a with
+                | Node( Assign, Node(X(x),_)::fu::[] )  -> Set.fold (fun r sign -> Set.add (x,sign) r ) Ø (Ac Ss fu)
+                | Node( Assign, Node(A(ar),l)::fu::[] ) -> Set.fold (fun r sign -> Set.add (ar,sign) r ) Ø (Ac Ss fu)
+                | Node( Decl,   Node(X(x),_)::xs )      -> Set.ofList [(x,Zero)]
+                | Node( Decl,   Node(A(ar),l)::xs)      -> Set.ofList [(ar,Zero)]
+                | Node( Send,   Node(C(ch),_)::x::xs)   -> Set.fold (fun r sign -> Set.add (ch,sign) r ) Ø (Ac Ss x)
+                | Node( Recv,   ch::Node(X(x),_)::xs)   -> Set.fold (fun r sign -> Set.add (x,sign) r ) Ø (Ac Ss ch)
+                | Node( Recv,   ch::Node(A(ar),l)::xs)  -> Set.fold (fun r sign -> Set.add (ar,sign) r ) Ø (Ac Ss ch)
                 | _                                     -> Ø
+    let s' = Set.fold(fun r s -> Set.add (s,(Map.find qs cr)) r) Ø t
     match Map.tryFind id c with
         | Some(s) -> Map.add id (Set.union s s') c
         | None    -> Map.add id s' c
 
-let con_CSg Lc id (Ss,Sc) c =
-    let cs = Map.fold (fun r id' s -> if id'=id then r else r+s ) Ø c
-    let cs' = Set.fold (fun rst (v,s,cst) ->
-        if (Set.intersect (rmConstraint Ss) cst) = cst then Set.add (v,s,Sc) rst else rst ) Set.empty cs
-    (cs',(btm Lc))
+let ConstraintSatisfied cr Ss =
+    if Set.isEmpty cr then true
+    else Set.fold (fun r' inner -> r' || Set.fold (fun r cnstr -> (Set.contains True (Bs Ss cnstr)) && r) true inner ) false cr
 
-let update x signs c state =
-    let rSet = Set.filter (fun (y,s,c') -> not (x=y) ) state
-    Set.fold (fun rst sign -> Set.add (x,sign,c) rst ) rSet signs
+let con_sg cr id Ss c =
+    let t = Map.fold (fun r id' s -> if id'=id then r else r+s ) Ø c
+    Set.fold(fun r (s,cr) -> if ConstraintSatisfied cr Ss then Set.add s r else r ) Ø t
 
-let p_s p (s,c) =
+let update x signs state =
+    let rSet = Set.filter (fun (y,s) -> not (x=y) ) state
+    Set.fold (fun rst sign -> Set.add (x,sign) rst ) rSet signs
+
+let p_s p s =
     List.forall (fun (Policy(v,r)) ->
-        Set.fold (fun xs (v',s,c) -> v=v' && Set.contains s (ruleToSign r) || xs ) false s ) p
+        Set.fold (fun xs (v',s) -> v=v' && Set.contains s (ruleToSign r) || xs ) false s ) p
 
-let f_CS (Ls,Lc) (Ss,Sc) (qs,a,qt,id) =
-    let Sc' = f_C Bs Ls Lc Ss Sc (qs,a,qt,id)
+let f_s Ss (qs,a,qt,id) =
     match a with
-    | Node( Assign, Node(X(x),_)::fu::[] )  -> ((update x (Ac Ss fu) Sc Ss),Sc')
-    | Node( Assign, Node(A(ar),l)::fu::[] ) -> ((update ar (Ac Ss fu+(Ac Ss (Node(A(ar),l)))) Sc Ss),Sc')
-    | Node( Decl,   Node(X(x),_)::xs )      -> ((update x (Set.ofList [Zero]) Sc Ss),Sc')
-    | Node( Decl,   Node(A(ar),l)::xs)      -> ((update ar ((Ac Ss (Node(A(ar),l)))+(Set.ofList [Zero])) Sc Ss),Sc')
-    | Node( Send,   Node(C(ch),_)::x::xs)   -> ((update ch (Ac Ss x) Sc Ss),Sc')
-    | Node( Recv,   ch::Node(X(x),_)::xs)   -> ((update x (Ac Ss ch) Sc Ss),Sc')
-    | Node( Recv,   ch::Node(A(ar),l)::xs)  -> ((update ar ( (Ac Ss ch) + (Ac Ss (Node(A(ar),l))) ) Sc Ss),Sc')
-    | Node( b, _ ) when isBoolOp b          -> ((boolFilter Bs a Ss),Sc')
-    | _ -> (Ss,Sc')
+    | Node( Assign, Node(X(x),_)::fu::[] )  -> update x (Ac Ss fu) Ss
+    | Node( Assign, Node(A(ar),l)::fu::[] ) -> update ar (Ac Ss fu+(Ac Ss (Node(A(ar),l)))) Ss
+    | Node( Decl,   Node(X(x),_)::xs )      -> update x (Set.ofList [Zero]) Ss
+    | Node( Decl,   Node(A(ar),l)::xs)      -> update ar ((Ac Ss (Node(A(ar),l)))+(Set.ofList [Zero])) Ss
+    | Node( Send,   Node(C(ch),_)::x::xs)   -> update ch (Ac Ss x) Ss
+    | Node( Recv,   ch::Node(X(x),_)::xs)   -> update x (Ac Ss ch) Ss
+    | Node( Recv,   ch::Node(A(ar),l)::xs)  -> update ar ( (Ac Ss ch) + (Ac Ss (Node(A(ar),l))) ) Ss
+    | Node( b, _ ) when isBoolOp b          -> boolFilter Bs a Ss
+    | _ -> Ss
 
 let signToString = function
     | Pos  -> "+"
