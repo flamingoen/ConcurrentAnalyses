@@ -24,21 +24,18 @@ let op =
     ] |> Map.ofList ;;
 
 // ##### LATTICE #####
-type Lattice<'a when 'a : comparison> = Set<'a> * Set<'a> * Set<'a> -> Set<'a> -> Set<'a> * Set<'a> -> Set<'a> -> Set<'a> ;;
-
-let btm (b,t,u,l) = b ;;
-let top (b,t,u,l) = t ;;
-let lob s1 s2 (b,t,u,l) = u s1 s2 ;;
-let dif s1 s2 (b,t,u,l) = l s1 s2 ;;
-let subeq s1 s2 (b,t,u,l) = (u s1 s2) = s2 ;;
-let supeq s1 s2 (b,t,u,l) = (u s1 s2) = s1 ;;
+let btm (b,t,u) = b
+let top (b,t,u) = t
+let lob s1 s2 (b,t,u) = u s1 s2
+let subeq s1 s2 (b,t,u) = (u s1 s2) = s2
+let supeq s1 s2 (b,t,u) = (u s1 s2) = s1
 let sup s1 s2 L = not (subeq s1 s2 L)
 let sub s1 s2 L = not (supeq s1 s2 L)
 
 // ##### HELPERS ####
-let printList list = List.iter (fun lst -> (printfn("%A") lst) ) list ;;
-let printMap map = Map.iter (fun key lst -> (printfn("%A\t->\t %A") key lst) ) map ;;
-let printSet set = Set.iter (fun elem -> (printfn("%A") elem) ) set ;;
+let printList list = List.iter (fun lst -> (printfn("%A") lst) ) list
+let printMap map = Map.iter (fun key lst -> (printfn("%A\t->\t %A") key lst) ) map
+let printSet set = Set.iter (fun elem -> (printfn("%A") elem) ) set
 let foldSetList set = List.fold (fun rst s -> s+rst) Set.empty set
 
 let isBoolOp b = List.contains b [Gt;Lt;Eq;Geq;Leq;Neq;Not;Land;Lor;True;False]
@@ -93,6 +90,9 @@ type interval =
         | (I(mx,mn),I(mx',mn')) when mx<mx' && mn>mn' -> Empty
         | _,_ -> Empty
 
+// CONSTRAINTS
+
+type constraints = Constraint of Set<Set<action>>
 
 
 // POLICIES
