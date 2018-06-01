@@ -25,6 +25,7 @@ rule tokenize = parse
 | "="           { EQUAL }
 | "<"           { LESS }
 | ">"           { GREATER }
+| "V"           { OR }
 | int           { INT(Int32.Parse(LexBuffer<_>.LexemeString lexbuf)) }
 | id            { VAR(LexBuffer<_>.LexemeString lexbuf) }
 | eof           { EOF }

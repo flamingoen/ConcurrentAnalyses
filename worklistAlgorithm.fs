@@ -111,11 +111,12 @@ let MFPc L G E i f con_g con_a =
 // ##### WORKLIST ALGORITHM POLICIES #####
 // #######################################
 
-let rec MFPp2 cons Aa c p W =
+let rec MFPp2 cons Aa c W =
     let (L,E,f,con_g,con_a,G,insert,extract,policySatisfied) = cons
     match extract W with
     | None ->
         let r = List.fold (fun rst (q,id) -> Map.add q ( lob (Map.find q rst) (con_g id (btm L) c) L ) rst ) Aa E
+        let p = Map.fold (fun rst q res -> Map.add q (policySatisfied res) rst ) Map.empty r
         (r,p)
     | Some((qs,a,qt,id),xs) ->
         printStep (qs,a,qt,id) xs
@@ -129,13 +130,12 @@ let rec MFPp2 cons Aa c p W =
             let Aa' = (Map.add qt sqt' Aa)
             let W' = newW G (qs,a,qt,id) xs insert G
             let c' = con_a sqs (qs,a,qt,id) c
-            let p' = Map.add qt (policySatisfied sqt') p
-            MFPp2 cons Aa' c' p' W'
-        else MFPp2 cons Aa c p xs
+            MFPp2 cons Aa' c' W'
+        else MFPp2 cons Aa c xs
 
 let MFPp L G E i f con_g con_a ps =
     let Q = allNodes G
     let A = initA Q L E i
     let W = workList_list G
     let cons = (L,E,f,con_g,con_a,G,appendBack_list,extract_list,ps)
-    MFPp2 cons A Map.empty Map.empty W
+    MFPp2 cons A Map.empty W

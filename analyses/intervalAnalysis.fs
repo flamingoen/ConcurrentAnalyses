@@ -26,29 +26,39 @@ let L_I G = (btm_I,(top_I G),lob_I)
 
 let intervalOf x state = Set.fold (fun r (v,i) -> if v=x then r+i else r ) Empty state
 
-let ruleToInterval state = function
+let ruleToInterval = function
     | R_Pl      -> I(MAX,(max 1 MIN))
     | R_Mi      -> I((min -1 MAX),MIN)
     | R_Zr      -> I(0,0)
     | R_Grt(n)  -> I( MAX , (min (max (n+1) MIN) MAX) )
     | R_Lt(n)   -> I( (max (min (n-1) MAX) MIN) , MIN )
     | R_Eq(n)   -> I(n,n)
-    | R_Grtx(x) -> (intervalOf x state)+I(MAX,MAX)
-    | R_Ltx(x)  -> (intervalOf x state)+I(MIN,MIN)
-    | R_Eqx(x)  -> intervalOf x state
     | _         -> ob_I
 
+
+let getPolicyMapI pList =
+    List.fold (fun xs (Policy(v,r)) ->
+        match Map.tryFind v xs with
+        | Some(i) -> Map.add v (i+(ruleToInterval r)) xs
+        | None    -> Map.add v (ruleToInterval r) xs
+    ) Map.empty pList
+let getPolicyMap p =
+    let setMap = List.fold(fun r pList -> Set.add (getPolicyMapI pList) r) Ø p
+    Set.fold(fun r map ->
+        Map.fold(fun resMap var set ->
+            match Map.tryFind var r with
+            | Some(i) -> Map.add var (i-set) resMap
+            | None    -> Map.add var set resMap
+        ) r map
+    ) Map.empty setMap
 let exVal_I G p =
     let vars = (removeLocalVars (varsInGraph G)) + (channelsInGraph G)
-    let policyMap = List.fold (fun xs (Policy(v,r)) ->
-        match Map.tryFind v xs with
-        | Some(i) -> Map.add v (i-(ruleToInterval (top_I G) r)) xs
-        | None    -> Map.add v (ruleToInterval (top_I G) r) xs ) Map.empty p
+    let policyMap = getPolicyMap p
     let polic = Map.fold (fun xs v i ->
         if Set.contains v vars then
             Set.add (v,i) xs
         else xs ) Ø policyMap
-    let exclVars = (List.fold (fun xs (Policy(v,r)) -> Set.add v xs ) Ø p)+ (channelsInGraph G)
+    let exclVars = List.fold(fun r' pList -> r' + List.fold(fun xs (Policy(v,r)) -> Set.add v xs ) Ø pList ) Ø p
     Set.fold (fun rst var -> (Set.ofList [(var,ob_I)])+rst) polic (vars-exclVars)
 
 let plus = function
@@ -202,14 +212,26 @@ let f_I splitInterval Ss (qs,a,qt,id) =
     | Node( b, _ ) when isBoolOp b          -> mergeIntervalSet (boolFilter B_I a (splitIntervalSet Ss splitInterval))
     | _ -> Ss
 
-let p_I p s =
-    List.forall (fun (Policy(v,r)) ->
-        let rule = (ruleToInterval s r)
-        let exists = Set.fold (fun xs (v',i) -> v=v' || xs ) false s
-        Set.fold (fun xs (v',i) -> v=v' && (Set.contains True (equal (i,rule)) ) || xs ) (not exists) s ) p
+let ruleSatisfied r i =
+    let rule = Set.fold(fun rst rl -> (ruleToInterval rl)+rst) Empty r
+    if rule+i = rule then Satisfied
+    else if i-rule = Undefined then Unsatisfied
+    else Unknown
 
-// (Set.contains True (equal (i,rule)) )
-// (rule+i = rule)
+let orRule pList state =
+    let ruleMap = List.fold (fun r (Policy(var,rule)) ->
+        match Map.tryFind var r with
+        | None -> Map.add var (Set.ofList [rule]) r
+        | Some(s) ->  Map.add var (Set.add rule s) r ) Map.empty pList
+    Map.fold(fun r var rule ->
+        let intervalOfVar = Set.fold(fun r (v,i) -> if var=v then i+r else r) Empty state
+        (ruleSatisfied rule intervalOfVar) .| r) Unsatisfied ruleMap
+let p_I p s = List.fold (fun r pLst -> r .& (orRule pLst s) ) Satisfied p
+
+//    List.fold (fun r (Policy(var,rule)) ->
+//        if not(Set.fold (fun xs (v,i) -> var=v || xs ) false s) then Satisfied else
+//            let interval = Set.fold(fun r (v,i) -> if var=v then i+r else r) Empty s
+//            (ruleSatisfied rule interval) .& r ) Satisfied p
 
 let intervalToString = function
     | Undefined  -> "Err"

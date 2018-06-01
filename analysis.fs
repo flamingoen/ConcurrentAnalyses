@@ -19,12 +19,9 @@ let printFooter G  =
     printfn"Transitions: %i    " (List.length G)
 let printPolicy p sat =
     printf"\nPolicies: "
-    List.iter (fun policy -> printf("%s ") (policyToString policy) ) p
-    printf"\nUnknown in:\t"
-    Map.iter(fun q b -> if b then (printf"%A " q) else printf"" ) sat
-    printf"\nUnsatified in:\t"
-    Map.iter(fun q b -> if b then (printf"") else (printf"%A " q) ) sat
-    printfn""
+    List.iter(List.iter(fun policy -> printf("%s ") (policyToString policy) ) ) p
+    printf"\n"
+    Map.iter(printfn"q%A\t %A") sat
 
 
 let reachingDefinition G ex non =
@@ -71,7 +68,7 @@ let detectionOfSignsAnalysis G p ex =
     printfn""
     Map.iter (fun q state ->
         printf("q%-10A\t") q
-        Set.iter (fun (x,s) -> printf("%5s-> %-5s " ) x s) state
+        Set.iter (fun (x,s) -> printf("%5s-> %-5s" ) x s) state
         printfn("")
         ) colRes
     printFooter G
@@ -97,7 +94,6 @@ let intervalAnalysis G p ex =
         ) conRes
     printFooter G
     printPolicy p sat
-
 
 let parityAnalysis G p ex =
     printfn"\nAnalysing constraints"

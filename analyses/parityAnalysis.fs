@@ -69,13 +69,26 @@ let ruleToParity = function
     | R_Odd  -> Set.ofList [Odd]
     | _      -> Set.ofList [Even; Odd]
 
+let getPolicyMapI pList =
+    List.fold (fun xs (Policy(v,r)) ->
+        match Map.tryFind v xs with
+        | None -> Map.add v (ruleToParity r) xs
+        | Some(s) ->  Map.add v ( Set.union s (ruleToParity r) ) xs
+    ) Map.empty pList
+let getPolicyMap p =
+    let setMap = List.fold(fun r pList -> Set.add (getPolicyMapI pList) r) Ø p
+    Set.fold(fun r map ->
+        Map.fold(fun resMap var set ->
+            match Map.tryFind var r with
+            | None -> Map.add var set resMap
+            | Some(s) ->  Map.add var ( Set.intersect s set ) resMap
+        ) r map
+    ) Map.empty setMap
 let exVal_p G p =
     let vars = (removeLocalVars (varsInGraph G))+(channelsInGraph G)
-    let polic = List.fold (fun xs (Policy(v,r)) ->
-        if Set.contains v vars then
-            Set.fold (fun xs' sign -> Set.add (v,sign) xs' ) xs (ruleToParity r)
-        else xs ) Ø p
-    let exclVars = List.fold (fun xs (Policy(v,r)) -> Set.add v xs ) Ø p
+    let policyMap = getPolicyMap p
+    let polic = Map.fold (fun xs v s -> if Set.contains v vars then Set.fold (fun xs' sign -> Set.add (v,sign) xs' ) xs s else xs ) Ø policyMap
+    let exclVars = List.fold(fun r' pList -> r' + List.fold(fun xs (Policy(v,r)) -> Set.add v xs ) Ø pList ) Ø p
     Set.fold (fun rst var -> (Set.ofList [(var,Even);(var,Odd)])+rst) polic (vars-exclVars)
 
 let ConstraintSatisfied cr Ss =
@@ -106,9 +119,22 @@ let update x p state =
     Set.fold (fun rst parity -> Set.add (x,parity) rst
     ) rSet p
 
-let p_p p s =
-    List.forall (fun (Policy(v,r)) ->
-        Set.fold (fun xs (v',s) -> v=v' && Set.contains s (ruleToParity r) || xs ) false s ) p
+let ruleSatisfied r s =
+    let rule = Set.fold(fun rst r -> (ruleToParity r) + rst ) Ø r
+    if Set.isSubset s rule then Satisfied
+    else if Set.isSuperset s rule then Unknown
+    else Unsatisfied
+
+let orRule pList state =
+    let ruleMap = List.fold (fun r (Policy(var,rule)) ->
+        match Map.tryFind var r with
+        | None -> Map.add var (Set.ofList [rule]) r
+        | Some(s) ->  Map.add var (Set.add rule s) r ) Map.empty pList
+    Map.fold(fun r var ruleSet ->
+        let SetOfVar = Set.fold(fun r (v,s) -> if var=v then Set.add s r else r) Ø state
+        (ruleSatisfied ruleSet SetOfVar) .| r) Unsatisfied ruleMap
+let p_p p s = List.fold (fun r pLst -> r .& (orRule pLst s) ) Satisfied p
+
 
 let f_p Sp (qs,a,qt,id) =
     match a with

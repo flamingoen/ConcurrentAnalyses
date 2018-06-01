@@ -59,18 +59,30 @@ let Ls G =
     let lob s1 s2 = Set.(+) (s1,s2)
     (Ø,(top_s G),lob)
 
-let exVal_s G p =
-    let vars = (removeLocalVars (varsInGraph G))+(channelsInGraph G)
-    let policyMap = List.fold (fun xs (Policy(v,r)) ->
+let getPolicyMapI pList =
+    List.fold (fun xs (Policy(v,r)) ->
         match Map.tryFind v xs with
         | None -> Map.add v (ruleToSign r) xs
-        | Some(s) when Set.isEmpty ( Set.intersect s (ruleToSign r) ) -> Map.add v ( Set.ofList [S_Undefined]) xs
-        | Some(s) ->  Map.add v ( Set.intersect s (ruleToSign r) ) xs ) Map.empty p
-    let polic = Map.fold (fun xs v s ->
+        | Some(s) ->  Map.add v ( Set.union s (ruleToSign r) ) xs
+    ) Map.empty pList
+let getPolicyMap p =
+    let setMap = List.fold(fun r pList -> Set.add (getPolicyMapI pList) r) Ø p
+    Set.fold(fun r map ->
+        Map.fold(fun resMap var set ->
+            match Map.tryFind var r with
+            | None -> Map.add var set resMap
+            | Some(s) when Set.isEmpty ( Set.intersect s set ) -> Map.add var ( Set.ofList [S_Undefined]) resMap
+            | Some(s) ->  Map.add var ( Set.intersect s set ) resMap
+        ) r map
+    ) Map.empty setMap
+let exVal_s G p =
+    let vars = (removeLocalVars (varsInGraph G))+(channelsInGraph G)
+    let policyMap = getPolicyMap p
+    let polic = Map.fold(fun xs v s ->
         if Set.contains v vars then Set.fold (fun xs' sign -> Set.add (v,sign) xs' ) xs s
         else xs ) Ø policyMap
-    let exclVars = List.fold (fun xs (Policy(v,r)) -> Set.add v xs ) Ø p
-    Set.fold (fun rst var -> (Set.ofList [(var,Zero);(var,Pos);(var,Neg)])+rst ) polic (vars-exclVars)
+    let exclVars = List.fold(fun r' pList -> r' + List.fold(fun xs (Policy(v,r)) -> Set.add v xs ) Ø pList ) Ø p
+    Set.fold(fun rst var -> (Set.ofList [(var,Zero);(var,Pos);(var,Neg)])+rst ) polic (vars-exclVars)
 
 let con_sa cr Ss (qs,a,qt,id) c =
     let t = match a with
@@ -99,9 +111,21 @@ let update x signs state =
     let rSet = Set.filter (fun (y,s) -> not (x=y) ) state
     Set.fold (fun rst sign -> Set.add (x,sign) rst ) rSet signs
 
-let p_s p s =
-    List.forall (fun (Policy(v,r)) ->
-        Set.fold (fun xs (v',s) -> v=v' && Set.contains s (ruleToSign r) || xs ) false s ) p
+let ruleSatisfied r s =
+    let rule = Set.fold(fun rst r -> (ruleToSign r) + rst ) Ø r
+    if Set.isSubset s rule then Satisfied
+    else if Set.isSuperset s rule then Unknown
+    else Unsatisfied
+
+let orRule pList state =
+    let ruleMap = List.fold (fun r (Policy(var,rule)) ->
+        match Map.tryFind var r with
+        | None -> Map.add var (Set.ofList [rule]) r
+        | Some(s) ->  Map.add var (Set.add rule s) r ) Map.empty pList
+    Map.fold(fun r var ruleSet ->
+        let SetOfVar = Set.fold(fun r (v,s) -> if var=v then Set.add s r else r) Ø state
+        (ruleSatisfied ruleSet SetOfVar) .| r) Unsatisfied ruleMap
+let p_s p s = List.fold (fun r pLst -> r .& (orRule pLst s) ) Satisfied p
 
 let f_s Ss (qs,a,qt,id) =
     match a with

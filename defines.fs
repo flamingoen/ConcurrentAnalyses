@@ -99,7 +99,23 @@ type constraints = Constraint of Set<Set<action>>
 
 type rule = R_Pl | R_Mi | R_Zr | R_Even | R_Odd | R_Grt of int | R_Lt of int | R_Eq of int | R_Grtx of string | R_Ltx of string | R_Eqx of string
 type policy = Policy of (string * rule)
-type policies = policy List
+type policies = (policy List) List
+
+type policyResult =
+    Unknown | Satisfied | Unsatisfied
+    static member (.&) (e1:policyResult,e2:policyResult) =
+        match (e1,e2) with
+        | (Satisfied,Satisfied)     -> Satisfied
+        | (Unsatisfied,Satisfied)   -> Unsatisfied
+        | (Satisfied,Unsatisfied)   -> Unsatisfied
+        | (Unsatisfied,Unsatisfied) -> Unsatisfied
+        | (_,_)                     -> Unknown
+    static member (.|) (e1:policyResult,e2:policyResult) =
+        match (e1,e2) with
+        | (_,Satisfied)             -> Satisfied
+        | (Satisfied,_)             -> Satisfied
+        | (Unsatisfied,Unsatisfied) -> Unsatisfied
+        | (_,_)                     -> Unknown
 
 let p_true s = true
 
@@ -115,6 +131,7 @@ let ruleToString = function
     | R_Grtx(x) -> ">"+x
     | R_Ltx(x) -> "<"+x
     | R_Eqx(x) -> "="+x
+
 
 let policyToString = function
     Policy(var,rule) -> var+(ruleToString rule)
