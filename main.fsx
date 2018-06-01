@@ -13,6 +13,7 @@ let stopWatch = System.Diagnostics.Stopwatch.StartNew()
 #load "graphviz/graphViz.fs"
 #load "analyses/bitVectorAnalyses.fs"
 #load "analyses/tablesSign.fs"
+#load "analyses/integerAnalysis.fs"
 #load "analyses/constraintAnalysis.fs"
 #load "analyses/signAnalysis.fs"
 #load "analyses/intervalAnalysis.fs"
@@ -29,27 +30,36 @@ open TreeGenerator
 open GraphViz
 open Analysis
 
-let run prog pol atype =
+let run prog pol atype product =
     let syntaxTree = try parseProgram prog with e -> failwith ("could not parse program:\n"+prog)
     let p = try parsePolicy pol with e -> failwith ("Could not parse policy:\n"+pol)
+    printfn"%A" p
     let (g,e) = normalizeGraph ( pgGen syntaxTree )
     makeGraph g e
-    //let (graphProduct,exValProduct) = productGraph G E
-    //makeProductGraph graphProduct e
+    let (gp,ep) = productGraph g e
+    makeProductGraph gp e
     match atype with
+    | RD  when product -> reachingDefinition gp ep (Set.ofList [-1])
     | RD  -> reachingDefinition g e -1
+    | LV  when product -> liveVariables gp ep
     | LV  -> liveVariables g e
+    | DOS when product -> detectionOfSignsAnalysis gp p ep
     | DOS -> detectionOfSignsAnalysis g p e
+    | DOI when product -> intervalAnalysis gp p ep
     | DOI -> intervalAnalysis g p e
+    | PAR when product -> parityAnalysis gp p ep
     | PAR -> parityAnalysis g p e
 
 
 // ##### Running everything ######
-let program = shifter
-let analysisType = DOI
-let pol = " x > -1 y > -1 x<2 y<2 "
+let program = testProgram2
+let analysisType = PAR
+let pol = "
+y<0 V x>0
+"
+let useProduct = false
 
 stopWatch.Restart()
-run program pol analysisType
+run program pol analysisType useProduct
 stopWatch.Stop()
 printfn "\nAnalysis time: %f ms" stopWatch.Elapsed.TotalMilliseconds

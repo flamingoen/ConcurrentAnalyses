@@ -1,20 +1,17 @@
 module Programs
 
 let simpleProgram = "
-par x:=1 [] x:=-1 rap
+par x:=1 [] x:= -1 rap
 "
 
 let testProgram2 = "
 par
-    x:=0;
-    y:=0;
     if
         true -> x:=1; skip
     []
         true -> x:=-1; skip
     fi
 []
-    x:=0;
     if
         x>0 -> y:=1
     []
