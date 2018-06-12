@@ -6,16 +6,14 @@ default: run
 all: build dll run
 
 guardedCommands:
-	@echo "Compile guarded commands lexer/parser:"
 	@mono "FsLexYacc.7.0.6/build/fslex.exe" lexerParser/GuardedCommandLexer.fsl --unicode
 	@mono "FsLexYacc.7.0.6/build/fsyacc.exe" lexerParser/GuardedCommandParser.fsp --module GuardedCommandParser
 
 policies:
-	@echo "Compile policy lexer/parser:"
 	@mono "FsLexYacc.7.0.6/build/fslex.exe" lexerParser/PoliciesLexer.fsl --unicode
 	@mono "FsLexYacc.7.0.6/build/fsyacc.exe" lexerParser/PoliciesParser.fsp --module PoliciesParser
 
-defines.dll: defines.fs
+defines.dll:
 	@fsharpc --target:library -o:$(dllPath)/defines.dll defines.fs
 
 LexerParser.dll: defines.dll guardedCommands policies
