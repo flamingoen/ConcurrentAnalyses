@@ -37,19 +37,15 @@ let rec Bs state = function
     | Node(a,_)             -> failwith("In Bs: unknown match for action "+(string a))
 
 let ruleToSign = function
-    | R_Pl -> Set.ofList [Pos]
-    | R_Mi -> Set.ofList [Neg]
-    | R_Zr -> Set.ofList [Zero]
-    | R_Grt(n) -> if n>=0 then Set.ofList [Pos] else
-                    if n=(-1) then Set.ofList [Zero;Pos] else
-                    Set.ofList [Pos;Neg;Zero]
-    | R_Lt(n)  -> if n<=0 then Set.ofList [Neg] else
-                    if n=1 then Set.ofList [Zero;Neg] else
-                    Set.ofList [Pos;Neg;Zero]
-    | R_Eq(n) when n>0 -> Set.ofList [Pos]
-    | R_Eq(n) when n=0 -> Set.ofList [Zero]
-    | R_Eq(n) when n<0 -> Set.ofList [Neg]
-    | _    -> Set.ofList [Pos;Neg;Zero]
+    | R_Pl                  -> Set.ofList [Pos]
+    | R_Mi                  -> Set.ofList [Neg]
+    | R_Zr                  -> Set.ofList [Zero]
+    | R_Grt(n)  when n=0    -> Set.ofList [Pos]
+    | R_Grt(n)  when n=(-1) -> Set.ofList [Zero;Pos]
+    | R_Lt(n)   when n=0    -> Set.ofList [Neg]
+    | R_Lt(n)   when n=1    -> Set.ofList [Zero;Neg]
+    | R_Eq(n)   when n=0    -> Set.ofList [Zero]
+    | _                     -> Set.ofList []
 
 let top_s G =
     let vars = (removeLocalVars (varsInGraph G))+(channelsInGraph G)
@@ -62,18 +58,18 @@ let Ls G =
 let getPolicyMapI pList =
     List.fold (fun xs (Policy(v,r)) ->
         match Map.tryFind v xs with
-        | None -> Map.add v (ruleToSign r) xs
-        | Some(s) ->  Map.add v ( Set.union s (ruleToSign r) ) xs
+        | None      -> Map.add v (ruleToSign r) xs
+        | Some(s)   -> Map.add v ( Set.union s (ruleToSign r) ) xs
     ) Map.empty pList
 let getPolicyMap p =
     let setMap = List.fold(fun r pList -> Set.add (getPolicyMapI pList) r) Ø p
     Set.fold(fun r map ->
         Map.fold(fun resMap var set ->
-            match Map.tryFind var r with
-            | None -> Map.add var set resMap
-            | Some(s) when Set.isEmpty ( Set.intersect s set ) -> Map.add var ( Set.ofList [S_Undefined]) resMap
-            | Some(s) ->  Map.add var ( Set.intersect s set ) resMap
-        ) r map
+            if Set.isEmpty set then resMap else
+                match Map.tryFind var r with
+                | None -> Map.add var set resMap
+                | Some(s) when Set.isEmpty ( Set.intersect s set ) -> Map.add var ( Set.ofList [S_Undefined]) resMap
+                | Some(s) ->  Map.add var ( Set.intersect s set ) resMap ) r map
     ) Map.empty setMap
 let exVal_s G p =
     let vars = (removeLocalVars (varsInGraph G))+(channelsInGraph G)
@@ -86,13 +82,20 @@ let exVal_s G p =
 
 let con_sa cr Ss (qs,a,qt,id) c =
     let t = match a with
-                | Node( Assign, Node(X(x),_)::fu::[] )  -> Set.fold (fun r sign -> Set.add (x,sign) r ) Ø (Ac Ss fu)
-                | Node( Assign, Node(A(ar),l)::fu::[] ) -> Set.fold (fun r sign -> Set.add (ar,sign) r ) Ø (Ac Ss fu)
-                | Node( Decl,   Node(X(x),_)::xs )      -> Set.ofList [(x,Zero)]
-                | Node( Decl,   Node(A(ar),l)::xs)      -> Set.ofList [(ar,Zero)]
-                | Node( Send,   Node(C(ch),_)::x::xs)   -> Set.fold (fun r sign -> Set.add (ch,sign) r ) Ø (Ac Ss x)
-                | Node( Recv,   ch::Node(X(x),_)::xs)   -> Set.fold (fun r sign -> Set.add (x,sign) r ) Ø (Ac Ss ch)
-                | Node( Recv,   ch::Node(A(ar),l)::xs)  -> Set.fold (fun r sign -> Set.add (ar,sign) r ) Ø (Ac Ss ch)
+                | Node( Assign, Node(X(x),_)::fu::[] )  when not(isLocal x) ->
+                    Set.fold (fun r sign -> Set.add (x,sign) r ) Ø (Ac Ss fu)
+                | Node( Assign, Node(A(ar),l)::fu::[] ) when not(isLocal ar) ->
+                    Set.fold (fun r sign -> Set.add (ar,sign) r ) Ø (Ac Ss fu)
+                | Node( Decl,   Node(X(x),_)::xs )      when not(isLocal x) ->
+                    Set.ofList [(x,Zero)]
+                | Node( Decl,   Node(A(ar),l)::xs)      when not(isLocal ar) ->
+                    Set.ofList [(ar,Zero)]
+                | Node( Send,   Node(C(ch),_)::x::xs)   ->
+                    Set.fold (fun r sign -> Set.add (ch,sign) r ) Ø (Ac Ss x)
+                | Node( Recv,   ch::Node(X(x),_)::xs)   when not(isLocal x) ->
+                    Set.fold (fun r sign -> Set.add (x,sign) r ) Ø (Ac Ss ch)
+                | Node( Recv,   ch::Node(A(ar),l)::xs)  when not(isLocal ar) ->
+                    Set.fold (fun r sign -> Set.add (ar,sign) r ) Ø (Ac Ss ch)
                 | _                                     -> Ø
     let s' = Set.fold(fun r s -> Set.add (s,(Map.find qs cr)) r) Ø t
     match Map.tryFind id c with
@@ -111,21 +114,12 @@ let update x signs state =
     let rSet = Set.filter (fun (y,s) -> not (x=y) ) state
     Set.fold (fun rst sign -> Set.add (x,sign) rst ) rSet signs
 
-let ruleSatisfied r s =
+let ruleSatisfied_s r var state =
+    let SetOfVar = Set.fold(fun r (v,s) -> if var=v then Set.add s r else r) Ø state
     let rule = Set.fold(fun rst r -> (ruleToSign r) + rst ) Ø r
-    if Set.isSubset s rule then Satisfied
-    else if Set.isSuperset s rule then Unknown
+    if Set.isSubset SetOfVar rule then Satisfied
+    else if Set.isSuperset SetOfVar rule then Unknown
     else Unsatisfied
-
-let orRule pList state =
-    let ruleMap = List.fold (fun r (Policy(var,rule)) ->
-        match Map.tryFind var r with
-        | None -> Map.add var (Set.ofList [rule]) r
-        | Some(s) ->  Map.add var (Set.add rule s) r ) Map.empty pList
-    Map.fold(fun r var ruleSet ->
-        let SetOfVar = Set.fold(fun r (v,s) -> if var=v then Set.add s r else r) Ø state
-        (ruleSatisfied ruleSet SetOfVar) .| r) Unsatisfied ruleMap
-let p_s p s = List.fold (fun r pLst -> r .& (orRule pLst s) ) Satisfied p
 
 let f_s Ss (qs,a,qt,id) =
     match a with
@@ -144,3 +138,8 @@ let signToString = function
     | Neg  -> "-"
     | Zero -> "0"
     | S_Undefined -> "Err."
+
+let framework_s cr G p =
+    let l = Ls G
+    let ex = exVal_s G p
+    (f_s,l,ex,con_sa cr,con_sg cr,(policySats ruleSatisfied_s))

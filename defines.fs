@@ -24,6 +24,7 @@ let op =
     ] |> Map.ofList ;;
 
 // ##### LATTICE #####
+type lattice<'a when 'a : comparison> = Set<'a> * Set<'a> * (Set<'a> -> Set<'a> -> Set<'a>)
 let btm (b,t,u) = b
 let top (b,t,u) = t
 let lob s1 s2 (b,t,u) = u s1 s2
@@ -102,13 +103,12 @@ type policy = Policy of (string * rule)
 type policies = (policy List) List
 
 type policyResult =
-    Unknown | Satisfied | Unsatisfied
+    Unknown | Satisfied | Unsatisfied | Error
     static member (.&) (e1:policyResult,e2:policyResult) =
         match (e1,e2) with
         | (Satisfied,Satisfied)     -> Satisfied
-        | (Unsatisfied,Satisfied)   -> Unsatisfied
-        | (Satisfied,Unsatisfied)   -> Unsatisfied
-        | (Unsatisfied,Unsatisfied) -> Unsatisfied
+        | (Unsatisfied,_)           -> Unsatisfied
+        | (_,Unsatisfied)           -> Unsatisfied
         | (_,_)                     -> Unknown
     static member (.|) (e1:policyResult,e2:policyResult) =
         match (e1,e2) with
@@ -116,8 +116,38 @@ type policyResult =
         | (Satisfied,_)             -> Satisfied
         | (Unsatisfied,Unsatisfied) -> Unsatisfied
         | (_,_)                     -> Unknown
+    static member (.+) (e1:policyResult,e2:policyResult) =
+        match (e1,e2) with
+        | (Unsatisfied,Satisfied)   -> Unknown
+        | (Satisfied,Unsatisfied)   -> Unknown
+        | (Satisfied,_)             -> Satisfied
+        | (Unsatisfied,_)           -> Unsatisfied
+        | (_,Satisfied)             -> Satisfied
+        | (_,Unsatisfied)           -> Unsatisfied
+        | (_,_)                     -> Unknown
+    static member (.^) (e1:policyResult,e2:policyResult) =
+        match (e1,e2) with
+        | (Satisfied,Satisfied)       -> Satisfied
+        | (Unsatisfied,Unsatisfied)   -> Unsatisfied
+        | (_,_)                     -> Unknown
+
+type policyList = policyResult List
+let pl_plus (e1:policyList,e2:policyList)       = List.map2 (.+) e1 e2
+let pl_concat (e:policyList)                    = List.fold (.&) Satisfied e
+let pl_and (e1:policyList,e2:policyList)        = List.map2 (.&) e1 e2
+let pl_xor (e1:policyList,e2:policyList)        = List.map2 (.^) e1 e2
+let toPolicyList (s:policyResult)(e:policies)   = List.fold (fun r lst -> s::r) [] e
 
 let p_true s = true
+
+let orRule ruleSatisfied state pList =
+    let ruleMap = List.fold (fun r (Policy(var,rule)) ->
+        match Map.tryFind var r with
+        | None -> Map.add var (Set.ofList [rule]) r
+        | Some(s) ->  Map.add var (Set.add rule s) r ) Map.empty pList
+    Map.fold(fun r var ruleSet ->
+        (ruleSatisfied ruleSet var state) .| r) Unsatisfied ruleMap
+let policySats rs p s = List.map(orRule rs s) p
 
 let ruleToString = function
     | R_Pl -> "->+"

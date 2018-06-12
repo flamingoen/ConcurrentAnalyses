@@ -9,6 +9,7 @@ open ConstraintAnalysis
 open SignAnalysis
 open IntervalAnalysis
 open ParityAnalysis
+open CombinatorialAnalysis
 
 let E_initial ex    = List.fold (fun rst (qs,qt,id) -> (qs,id)::rst ) [] ex
 let E_final ex      = List.fold (fun rst (qs,qt,id) -> (qt,id)::rst ) [] ex
@@ -34,6 +35,7 @@ let reachingDefinition G ex non =
         printfn("")
         ) res
     printFooter G
+let RDtest G ex non = MFPc (L_RD G) G (E_initial ex) (exVal_RD G non) f_RD con_BVFg (con_RDa)
 
 let liveVariables G ex =
     printf"\nLive variables:"
@@ -61,8 +63,9 @@ let detectionOfSignsAnalysis G p ex =
     let Cs = MFP (Lc (Ls G) G) G (E_initial ex) (exVal_C (exVal_s G p)) (Fc f_s Bs)
     let Cs' = Map.fold (fun r id (s,c) -> Map.add id c r) Map.empty Cs
     printFooter G
+    resetStats
     printfn"\nDetection of signs analysis"
-    let (res,sat) = MFPp (Ls G) G (E_initial ex) (exVal_s G p) f_s (con_sg Cs') (con_sa Cs') (p_s p)
+    let (res,sat) = MFPp (Ls G) G (E_initial ex) (exVal_s G p) f_s (con_sg Cs') (con_sa Cs') Map.empty (policySats ruleSatisfied_s p)
     let colRes = Map.fold (fun r q s ->
         Map.add q ( condenseState S_Undefined signToString s (Set.toList (varsIn s))) r ) Map.empty res
     printfn""
@@ -84,7 +87,7 @@ let intervalAnalysis G p ex =
     let Cs = MFP (Lc (L_I G) G) G (E_initial ex) (exVal_C (exVal_I G p)) (Fc (f_I MAX) B_I)
     let Cs' = Map.fold (fun r id (s,c) -> Map.add id c r) Map.empty Cs
     printfn"\nInterval analysis"
-    let (res,sat) = MFPp (L_I G) G (E_initial ex) (exVal_I G p) (f_I MAX) (con_ig Cs') (con_ia Cs') (p_I p)
+    let (res,sat) = MFPp (L_I G) G (E_initial ex) (exVal_I G p) (f_I MAX) (con_ig Cs') (con_ia Cs') Map.empty (policySats ruleSatisfied_I p)
     let conRes = Map.fold (fun rst q s -> Map.add q ( mergeIntervals s (Set.toList (varsIn s))) rst ) Map.empty res
     printfn "\n"
     Map.iter (fun q state ->
@@ -100,7 +103,7 @@ let parityAnalysis G p ex =
     let Cs = MFP (Lc (Lp G) G) G (E_initial ex) (exVal_C (exVal_p G p)) (Fc f_p Bp)
     let Cs' = Map.fold (fun r id (s,c) -> Map.add id c r) Map.empty Cs
     printfn"\n Parity analysis"
-    let (res,sat) = MFPp (Lp G) G (E_initial ex) (exVal_p G p) f_p con_pg (con_pa Cs') (p_p p)
+    let (res,sat) = MFPp (Lp G) G (E_initial ex) (exVal_p G p) f_p con_pg (con_pa Cs') Map.empty (policySats ruleSatisfied_P p)
     printfn "\n"
     let colRes = Map.fold (fun rst q s ->
         Map.add q ( condenseState P_Undefined parityToString s (Set.toList (varsIn s))) rst ) Map.empty res
@@ -109,5 +112,40 @@ let parityAnalysis G p ex =
         Set.iter (fun (x,s) -> printf("%5s-> %-5A " ) x s) state
         printfn("")
         ) colRes
+    printFooter G
+    printPolicy p sat
+
+let combinatorialAnalysis (f1,l1,ex1,ca1,cg1,p1) (f2,l2,ex2,ca2,cg2,p2) G p ex =
+    let L = (L_cb (l1,l2))
+    let exVal = (exVal_cb (ex1,ex2))
+    let f = (f_cb f1 f2)
+    let Ca = Ca_cb (ca1,ca2)
+    let Cg = Cg_cb (cg1,cg2)
+    let Ps = P_cb (p1,p2) p
+    MFPp L G (E_initial ex) exVal f Cg Ca (Map.empty,Map.empty) Ps
+
+let parSignAnalysis G p ex =
+    printfn"\nAnalysing constraints"
+    let Cs = MFP (Lc (Lp G) G) G (E_initial ex) (exVal_C (exVal_p G p)) (Fc f_p Bp)
+    let Cs' = Map.fold (fun r id (s,c) -> Map.add id c r) Map.empty Cs
+    printfn"\n Combinational analysis"
+    let parityFramework = framework_p Cs' G p
+    let signFramework = framework_s Cs' G p
+    let (res,sat) = combinatorialAnalysis parityFramework signFramework G p ex
+    printfn""
+    printMap res
+    printFooter G
+    printPolicy p sat
+
+let parIntAnalysis G p ex =
+    printfn"\nAnalysing constraints"
+    let Cs = MFP (Lc (Lp G) G) G (E_initial ex) (exVal_C (exVal_p G p)) (Fc f_p Bp)
+    let Cs' = Map.fold (fun r id (s,c) -> Map.add id c r) Map.empty Cs
+    printfn"\n Combinational analysis"
+    let parityFramework = framework_p Cs' G p
+    let intervalFramework = framework_i Cs' G p
+    let (res,sat) = combinatorialAnalysis parityFramework intervalFramework G p ex
+    printfn""
+    printMap res
     printFooter G
     printPolicy p sat

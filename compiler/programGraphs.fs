@@ -55,7 +55,7 @@ let rec Pg qs qt p id tree =
         Pg qs qt p id cg
     | Node(Do,gc::[])   ->
         let (lst,ie,p') = (Pg qs qs p id gc)
-        ((qs,(pUpdate p (doneCg gc)),qt,id)::lst,ie,Map.empty)
+        ((qs,(pUpdate p' (doneCg gc)),qt,id)::lst,ie , p')
     | Node(Loop,[c]) ->
         Pg qs qs p id c
     | Node(Guard,g::c::[])  ->
@@ -64,8 +64,8 @@ let rec Pg qs qt p id tree =
         ((qs,(pUpdate p' g),q,id)::lst,ie,p')
     | Node(Gc,gc1::gc2::[]) ->
         let (lst1,ie1,p1) = (Pg qs qt p id gc1)
-        let (lst2,ie2,p2) = (Pg qs qt p id gc2)
-        ( (List.append lst1 lst2), (List.append ie1 ie2), p)
+        let (lst2,ie2,p2) = (Pg qs qt p1 id gc2)
+        ( (List.append lst1 lst2), (List.append ie1 ie2), p2)
     | Node(Seq,t1::t2::[])  ->
         let q = newstate()
         let (lst1,ie1,p1) = (Pg qs q p id t1)

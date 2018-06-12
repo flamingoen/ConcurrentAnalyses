@@ -46,9 +46,10 @@ let getPolicyMap p =
     let setMap = List.fold(fun r pList -> Set.add (getPolicyMapI pList) r) Ø p
     Set.fold(fun r map ->
         Map.fold(fun resMap var set ->
-            match Map.tryFind var r with
-            | Some(i) -> Map.add var (i-set) resMap
-            | None    -> Map.add var set resMap
+            if set=ob_I then resMap else
+                match Map.tryFind var r with
+                | Some(i) -> Map.add var (i-set) resMap
+                | None    -> Map.add var set resMap
         ) r map
     ) Map.empty setMap
 let exVal_I G p =
@@ -212,26 +213,12 @@ let f_I splitInterval Ss (qs,a,qt,id) =
     | Node( b, _ ) when isBoolOp b          -> mergeIntervalSet (boolFilter B_I a (splitIntervalSet Ss splitInterval))
     | _ -> Ss
 
-let ruleSatisfied r i =
+let ruleSatisfied_I r var state =
+    let intervalOfVar = Set.fold(fun r (v,i) -> if var=v then i+r else r) Empty state
     let rule = Set.fold(fun rst rl -> (ruleToInterval rl)+rst) Empty r
-    if rule+i = rule then Satisfied
-    else if i-rule = Undefined then Unsatisfied
+    if rule+intervalOfVar = rule then Satisfied
+    else if intervalOfVar-rule = Undefined then Unsatisfied
     else Unknown
-
-let orRule pList state =
-    let ruleMap = List.fold (fun r (Policy(var,rule)) ->
-        match Map.tryFind var r with
-        | None -> Map.add var (Set.ofList [rule]) r
-        | Some(s) ->  Map.add var (Set.add rule s) r ) Map.empty pList
-    Map.fold(fun r var rule ->
-        let intervalOfVar = Set.fold(fun r (v,i) -> if var=v then i+r else r) Empty state
-        (ruleSatisfied rule intervalOfVar) .| r) Unsatisfied ruleMap
-let p_I p s = List.fold (fun r pLst -> r .& (orRule pLst s) ) Satisfied p
-
-//    List.fold (fun r (Policy(var,rule)) ->
-//        if not(Set.fold (fun xs (v,i) -> var=v || xs ) false s) then Satisfied else
-//            let interval = Set.fold(fun r (v,i) -> if var=v then i+r else r) Empty s
-//            (ruleSatisfied rule interval) .& r ) Satisfied p
 
 let intervalToString = function
     | Undefined  -> "Err"
@@ -240,3 +227,8 @@ let intervalToString = function
     | I(max,min) when max=MAX            -> "( "+(string min)+" : ∞ )"
     | I(max,min) when min=MIN            -> "( -∞ : "+(string max)+" )"
     | I(max,min)                         -> "( "+(string min)+" : "+(string max)+" )"
+
+let framework_i cr G p =
+    let l = L_I G
+    let ex = exVal_I G p
+    (f_I MAX,l,ex,con_ia cr,con_ig cr,(policySats ruleSatisfied_I) )
