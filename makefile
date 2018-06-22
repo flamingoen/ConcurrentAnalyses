@@ -39,7 +39,7 @@ output:
 
 cleanOut:
 	@rm results/*
-	@rm graphviz/*
+	@rm graphviz/*.gv
 
 cleanParserLexer:
 	@rm lexerParser/GuardedCommandLexer.fs lexerParser/GuardedCommandParser.fs lexerParser/GuardedCommandParser.fsi
