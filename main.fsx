@@ -37,6 +37,7 @@ printfn"\nCompiling program"
 stopWatch.Restart()
 let syntaxTree = try parseProgram program with e -> failwith ("could not parse program:\n"+program)
 let p = try parsePolicy pol with e -> failwith ("Could not parse policy:\n"+pol)
+let i = try parsePolicy (init+"\n"+pol) with e -> failwith ("Could not parse init:\n"+init)
 let (g,e) = normalizeGraph ( pgGen syntaxTree )
 let (gp,ep) = productGraph g e
 stopWatch.Stop()
@@ -45,12 +46,176 @@ printfn "Compile time:\t%f ms" stopWatch.Elapsed.TotalMilliseconds
 if createGraph then makeGraph g e
 if createProductGraph then makeProductGraph gp e
 
-let rec test (stopWatch:System.Diagnostics.Stopwatch) times =
+let rec test (stopWatch:System.Diagnostics.Stopwatch) times=
     if times>0 then
+        printfn "RD DG"
         stopWatch.Restart()
-        RDtest g e -1
+        (RDtest g e -1) |> ignore
         stopWatch.Stop()
-        printfn "Analysis time: %f ms" stopWatch.Elapsed.TotalMilliseconds
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (RDtest g e -1) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (RDtest g e -1) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (RDtest g e -1) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (RDtest g e -1) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        printfn "RD PG"
+        stopWatch.Restart()
+        (RDtest gp ep (Set.ofList [-1])) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (RDtest gp ep (Set.ofList [-1])) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (RDtest gp ep (Set.ofList [-1])) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (RDtest gp ep (Set.ofList [-1])) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (RDtest gp ep (Set.ofList [-1])) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        printfn "DOS DG"
+        stopWatch.Restart()
+        (dosTest g p e) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (dosTest g p e) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (dosTest g p e) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (dosTest g p e) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (dosTest g p e) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        printfn "DOS PG"
+        stopWatch.Restart()
+        (dosTest gp p ep) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (dosTest gp p ep) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (dosTest gp p ep) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (dosTest gp p ep) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (dosTest gp p ep) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        printfn "DOI DG"
+        stopWatch.Restart()
+        (doiTest g p e) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (doiTest g p e) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (doiTest g p e) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (doiTest g p e) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (doiTest g p e) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        printfn "DOI PG"
+        stopWatch.Restart()
+        (doiTest gp p ep) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (doiTest gp p ep) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (doiTest gp p ep) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (doiTest gp p ep) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (doiTest gp p ep) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        printfn "PAR DG"
+        stopWatch.Restart()
+        (parTest g p e) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (parTest g p e) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (parTest g p e) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (parTest g p e) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (parTest g p e) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        printfn "PAR PG"
+        stopWatch.Restart()
+        (parTest gp p ep) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (parTest gp p ep) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (parTest gp p ep) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (parTest gp p ep) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
+        stopWatch.Restart()
+        (parTest gp p ep) |> ignore
+        stopWatch.Stop()
+        printfn "%f" stopWatch.Elapsed.TotalMilliseconds
         test stopWatch (times-1)
     else printfn "Test finished"
 
@@ -63,8 +228,8 @@ if createAnalysis then
         | RD  -> reachingDefinition g e -1
         | LV  when useProduct -> liveVariables gp ep
         | LV  -> liveVariables g e
-        | DOS when useProduct -> detectionOfSignsAnalysis gp p ep
-        | DOS -> detectionOfSignsAnalysis g p e
+        | DOS when useProduct -> detectionOfSignsAnalysis gp p i ep
+        | DOS -> detectionOfSignsAnalysis g p i e
         | DOI when useProduct -> intervalAnalysis gp p ep
         | DOI -> intervalAnalysis g p e
         | PAR when useProduct -> parityAnalysis gp p ep
@@ -73,4 +238,4 @@ if createAnalysis then
         | PS  -> parSignAnalysis g p e
         | DS when useProduct -> parIntAnalysis gp p ep
         | DS -> parIntAnalysis g p e
-    | TEST -> test stopWatch testIterations
+    | TEST -> test stopWatch 1

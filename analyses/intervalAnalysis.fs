@@ -12,17 +12,19 @@ let ob_I = I(MAX,MIN)
 let lb_I = Undefined
 
 let btm_I = Ø
-let top_I G = Set.fold (fun rst var -> Set.add (var,ob_I) rst ) Ø (varsInGraph G)
 
 let lob_I s1 s2 =
-     let map = Set.fold (fun rst (var,(i:interval)) -> Map.add var i rst ) Map.empty s1
+     let map = Set.fold (fun rst (var,(i:interval)) ->
+        match Map.tryFind var rst with
+        | None -> (Map.add var i rst)
+        | Some(i') -> Map.add var (i+i') rst ) Map.empty s1
      let newMap = Set.fold (fun rst (var,i) ->
-         match Map.tryFind var map with
+         match Map.tryFind var rst with
          | None -> (Map.add var i rst)
          | Some(i') -> Map.add var (i+i') rst ) map s2
      Map.fold (fun rst var i -> Set.add (var,i) rst ) Ø newMap
 
-let L_I G = (btm_I,(top_I G),lob_I)
+let L_I G = (btm_I,lob_I)
 
 let intervalOf x state = Set.fold (fun r (v,i) -> if v=x then r+i else r ) Empty state
 
@@ -59,7 +61,7 @@ let exVal_I G p =
         if Set.contains v vars then
             Set.add (v,i) xs
         else xs ) Ø policyMap
-    let exclVars = List.fold(fun r' pList -> r' + List.fold(fun xs (Policy(v,r)) -> Set.add v xs ) Ø pList ) Ø p
+    let exclVars = List.fold(fun r' pList -> r' + List.fold(fun xs (Policy(v,r)) -> if (ruleToInterval r)=ob_I then xs else Set.add v xs ) Ø pList ) Ø p
     Set.fold (fun rst var -> (Set.ofList [(var,ob_I)])+rst) polic (vars-exclVars)
 
 let plus = function
@@ -177,13 +179,11 @@ let con_ig cr id Ss c =
 
 let con_ia cr Ss (qs,a,qt,id) c =
     let t = match a with
-                | Node( Assign, Node(X(x),_)::fu::[] )  -> (x,(A_I Ss fu))
-                | Node( Assign, Node(A(ar),l)::fu::[] ) -> (ar,(A_I Ss fu))
-                | Node( Decl,   Node(X(x),_)::xs )      -> (x,I(0,0))
-                | Node( Decl,   Node(A(ar),l)::xs)      -> (ar,I(0,0))
+                | Node( Assign, Node(X(x),_)::fu::[] )  when not(isLocal x) -> (x,(A_I Ss fu))
+                | Node( Assign, Node(A(ar),l)::fu::[] ) when not(isLocal ar) -> (ar,(A_I Ss fu))
                 | Node( Send,   Node(C(ch),_)::x::xs)   -> (ch,(A_I Ss x))
-                | Node( Recv,   ch::Node(X(x),_)::xs)   -> (x,(A_I Ss ch))
-                | Node( Recv,   ch::Node(A(ar),l)::xs)  -> (ar,(A_I Ss ch))
+                | Node( Recv,   ch::Node(X(x),_)::xs)   when not(isLocal x) -> (x,(A_I Ss ch))
+                | Node( Recv,   ch::Node(A(ar),l)::xs)  when not(isLocal ar) -> (ar,(A_I Ss ch))
                 | _                                     -> ("",Empty)
     let s' = if t = ("",Empty) then Ø else Set.ofList [(t,(Map.find qs cr))]
     match Map.tryFind id c with
@@ -213,10 +213,11 @@ let f_I splitInterval Ss (qs,a,qt,id) =
     | Node( b, _ ) when isBoolOp b          -> mergeIntervalSet (boolFilter B_I a (splitIntervalSet Ss splitInterval))
     | _ -> Ss
 
-let ruleSatisfied_I r var state =
+let ruleSatisfied_I state (Policy(var,r)) =
     let intervalOfVar = Set.fold(fun r (v,i) -> if var=v then i+r else r) Empty state
-    let rule = Set.fold(fun rst rl -> (ruleToInterval rl)+rst) Empty r
-    if rule+intervalOfVar = rule then Satisfied
+    let rule = (ruleToInterval r)
+    if rule=ob_I then Unknown
+    else if rule+intervalOfVar = rule then Satisfied
     else if intervalOfVar-rule = Undefined then Unsatisfied
     else Unknown
 

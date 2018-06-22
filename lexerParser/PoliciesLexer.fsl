@@ -11,7 +11,7 @@ let char        = ['a'-'z' 'A'-'Z']
 let digit       = ['0'-'9']
 let whitespace  = [' ' '\t']
 let newline     = "\n\r" | '\n' | '\r'
-let id          = char(char|digit|['_'])*
+let id          = char(char|digit|['_']|['{']|['}'])*
 let int         = '-'?digit+
 
 rule tokenize = parse

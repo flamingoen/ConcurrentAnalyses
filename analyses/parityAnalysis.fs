@@ -33,9 +33,9 @@ let divide = function
     | _         -> Set.ofList [P_Undefined]
 let modulo = function
     | Even,Even -> Set.ofList [Even]
-    | Odd,Even  -> Set.ofList [Even]
-    | Even,Odd  -> Set.ofList [Odd]
-    | Odd,Odd   -> Set.ofList [Odd]
+    | Odd,Even  -> Set.ofList [Even; Odd]
+    | Even,Odd  -> Set.ofList [Even; Odd]
+    | Odd,Odd   -> Set.ofList [Even; Odd]
     | _         -> Set.ofList [P_Undefined]
 
 let rec Ap state = function
@@ -56,13 +56,9 @@ let rec Ap state = function
 let rec Bp state = function
     | _ -> Set.ofList[True]
 
-let top_p G =
-    let vars = varsInGraph G
-    Set.fold (fun rst var -> (Set.ofList [(var,Even);(var,Odd)])+rst ) Ø vars
-
 let Lp G =
     let lob s1 s2 = Set.(+) (s1,s2)
-    (Ø,(top_p G),lob)
+    (Ø,lob)
 
 let ruleToParity = function
     | R_Even                -> Set.ofList [Even]
@@ -72,8 +68,8 @@ let ruleToParity = function
 let getPolicyMapI pList =
     List.fold (fun xs (Policy(v,r)) ->
         match Map.tryFind v xs with
-        | None -> Map.add v (ruleToParity r) xs
-        | Some(s) ->  Map.add v ( Set.union s (ruleToParity r) ) xs
+        | None      -> Map.add v (ruleToParity r) xs
+        | Some(s)   ->  Map.add v ( Set.union s (ruleToParity r) ) xs
     ) Map.empty pList
 let getPolicyMap p =
     let setMap = List.fold(fun r pList -> Set.add (getPolicyMapI pList) r) Ø p
@@ -89,7 +85,7 @@ let exVal_p G p =
     let vars = (removeLocalVars (varsInGraph G))+(channelsInGraph G)
     let policyMap = getPolicyMap p
     let polic = Map.fold (fun xs v s -> if Set.contains v vars then Set.fold (fun xs' sign -> Set.add (v,sign) xs' ) xs s else xs ) Ø policyMap
-    let exclVars = List.fold(fun r' pList -> r' + List.fold(fun xs (Policy(v,r)) -> Set.add v xs ) Ø pList ) Ø p
+    let exclVars = List.fold(fun r' pList -> r' + List.fold(fun xs (Policy(v,r)) -> if Set.isEmpty (ruleToParity r) then xs else Set.add v xs ) Ø pList ) Ø p
     Set.fold (fun rst var -> (Set.ofList [(var,Even);(var,Odd)])+rst) polic (vars-exclVars)
 
 let ConstraintSatisfied cr Ss =
@@ -102,14 +98,17 @@ let con_pg id Ss c =
 
 let con_pa cr Ss (qs,a,qt,id) c =
     let t = match a with
-                | Node( Assign, Node(X(x),_)::fu::[] )  -> Set.fold (fun r par -> Set.add (x,par) r ) Ø (Ap Ss fu)
-                | Node( Assign, Node(A(ar),l)::fu::[] ) -> Set.fold (fun r par -> Set.add (ar,par) r ) Ø (Ap Ss fu)
-                | Node( Decl,   Node(X(x),_)::xs )      -> Set.ofList [(x,Even)]
-                | Node( Decl,   Node(A(ar),l)::xs)      -> Set.ofList [(ar,Odd)]
-                | Node( Send,   Node(C(ch),_)::x::xs)   -> Set.fold (fun r par -> Set.add (ch,par) r ) Ø (Ap Ss x)
-                | Node( Recv,   ch::Node(X(x),_)::xs)   -> Set.fold (fun r par -> Set.add (x,par) r ) Ø (Ap Ss ch)
-                | Node( Recv,   ch::Node(A(ar),l)::xs)  -> Set.fold (fun r par -> Set.add (ar,par) r ) Ø (Ap Ss ch)
-                | _                                     -> Ø
+                | Node( Assign, Node(X(x),_)::fu::[] )  when not(isLocal x) ->
+                    Set.fold (fun r par -> Set.add (x,par) r ) Ø (Ap Ss fu)
+                | Node( Assign, Node(A(ar),l)::fu::[] ) when  not(isLocal ar) ->
+                    Set.fold (fun r par -> Set.add (ar,par) r ) Ø (Ap Ss fu)
+                | Node( Send,   Node(C(ch),_)::x::xs) ->
+                    Set.fold (fun r par -> Set.add (ch,par) r ) Ø (Ap Ss x)
+                | Node( Recv,   ch::Node(X(x),_)::xs) when not(isLocal x) ->
+                    Set.fold (fun r par -> Set.add (x,par) r ) Ø (Ap Ss ch)
+                | Node( Recv,   ch::Node(A(ar),l)::xs) when not(isLocal ar) ->
+                    Set.fold (fun r par -> Set.add (ar,par) r ) Ø (Ap Ss ch)
+                | _ -> Ø
     let s' = Set.fold(fun r s -> Set.add (s,(Map.find qs cr)) r) Ø t
     match Map.tryFind id c with
         | Some(s) -> Map.add id (Set.union s s') c
@@ -120,10 +119,11 @@ let update x p state =
     Set.fold (fun rst parity -> Set.add (x,parity) rst
     ) rSet p
 
-let ruleSatisfied_P r var state =
+let ruleSatisfied_P state (Policy(var,r)) =
     let SetOfVar = Set.fold(fun r (v,s) -> if var=v then Set.add s r else r) Ø state
-    let rule = Set.fold(fun rst r -> (ruleToParity r) + rst ) Ø r
-    if Set.isSubset SetOfVar rule then Satisfied
+    let rule = (ruleToParity r)
+    if Set.isEmpty rule then Unknown
+    else if Set.isSubset SetOfVar rule then Satisfied
     else if Set.isSuperset SetOfVar rule then Unknown
     else Unsatisfied
 

@@ -11,14 +11,16 @@ open GraphViz
 let mutable transitions = 0
 let mutable maxWSize = 0
 
-let printStep (qs,a,qt,id) W=
+
+let updateStats (l,s) =
     transitions <- transitions+1
-    //printfn("\nid:%A  %A->%A:\t  %-10s W: %A") id qs qt (nodeToString a) (List.length W)
+    let len = ((List.length l) + (Set.count s))
+    if len > maxWSize then maxWSize <- len
+
+let printStep (qs,a,qt,id) W=
+    printfn("\nid:%A  %A->%A:\t  %-10s") id qs qt (nodeToString a)
     //List.iter (fun (qs,a,qt,id) ->  printf"(%A->%A)" qs qt ) W
-    if (transitions+1)%99=0 then printf("#\n") else printf("#")
-
-let resetStats = transitions <- 0
-
+    //if (transitions+1)%99=0 then printf("#\n") else printf("#")
 
 // ##############################
 // #####   WORKLIST Types   #####
@@ -67,11 +69,12 @@ let initA nodes L E i =
     List.fold (fun rst (q,id) -> Map.add q i rst ) emptyA E
 
 let rec newW G (qs,a,qt,id) w append = function
-    | [] -> append (qs,a,qt,id) w
+    //| [] -> append (qs,a,qt,id) w
+    | [] -> w
     | (qs',a',qt',id')::xs when qs'=qt ->
         newW G (qs,a,qt,id) (append (qs',a',qt',id') w) append xs
-    //| (qs',a',qt',id')::xs when not(id'=id) ->
-    //    newW G (qs,a,qt,id) (append (qs',a',qt',id') w) append xs
+    | (qs',a',qt',id')::xs when not(id'=id) ->
+        newW G (qs,a,qt,id) (append (qs',a',qt',id') w) append xs
     | x::xs -> newW G (qs,a,qt,id) w append xs
 
 let rec MFP2 cons Aa W =
@@ -79,7 +82,7 @@ let rec MFP2 cons Aa W =
     match extract W with
     | None -> Aa
     | Some((qs,a,qt,id),xs) ->
-        printStep (qs,a,qt,id) xs
+        //printStep (qs,a,qt,id) xs
         let sqs = (Map.find qs Aa)
         let sqt = (Map.find qt Aa)
         let s' = f sqs (qs,a,qt,id)
@@ -135,20 +138,20 @@ let MFPc L G E i f con_g con_a =
 
 let rec MFPp2 cons Aa c W p =
     let (L,E,f,con_g,con_a,G,insert,extract,policySatisfied) = cons
+    updateStats W
     match extract W with
     | None ->
-        printfn"c = %A" c
         List.fold (fun (ai,pi) (q,id) ->
             let qs' = ( lob (Map.find q ai) (con_g id (btm L) c) L )
             let p'  = Map.add q ( (Map.find q pi) .& pl_concat(policySatisfied qs')) pi
             let Aa' = (Map.add q qs' ai)
-            printfn"cong = %A" (con_g id (btm L) c)
             (Aa', p') ) (Aa,p) E
     | Some((qs,a,qt,id),xs) ->
-        printStep (qs,a,qt,id) xs
+        //printStep (qs,a,qt,id) xs
         let sqs = (Map.find qs Aa)
         let sqt = (Map.find qt Aa)
-        let s' = lob (f sqs (qs,a,qt,id)) (con_g id sqt c) L
+        let conget = (con_g id sqt c)
+        let s' = lob (f sqs (qs,a,qt,id)) conget L
         let analysisChanged = (not (subeq s' sqt L))
         if analysisChanged then
             let sqt' = (lob s' sqt L)
@@ -163,7 +166,7 @@ let MFPp L G E i f con_g con_a cEmpty ps =
     let Q = allNodes G
     let A = initA Q L E i
     let (push,pull,W) = worktype G
-    let cons = (L,E,f,con_g,con_a,G,push,pull,(ps:('a -> policyList)))
+    let cons = (L,E,f,con_g,con_a,G,push,pull,(ps:('a -> (policyList List))))
     let p = Map.fold (fun rst q state ->
         Map.add q (pl_concat (ps state)) rst ) Map.empty A
     MFPp2 cons A cEmpty W p

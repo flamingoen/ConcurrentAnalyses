@@ -1,7 +1,7 @@
 module Programs
 
 let simpleProgram = "
-par x:=1 [] x:= -1 rap
+par x:=2 [] x:= -1 rap
 "
 
 let testProgram2 = "
@@ -16,8 +16,7 @@ par
         x>0 -> y:=1
     []
         true -> y:=-1
-    fi;
-    skip
+    fi
 rap
 "
 
@@ -25,68 +24,115 @@ let badBakery = "
 par
     var x;
     loop
-        skip;
         c1 := c2*(-1);
         do c2 > 0 -> c1 := c2*(-1) od;
-        in?x;
-        crit;
+        in1?x;
+        x := x*2 - 1;
         out!x;
         c1 := -1
     pool
 []
     var x;
     loop
-        skip;
         c2 := c1*(-1);
         do c1 > 0 -> c2 := c1*(-1) od;
-        in?x;
-        crit;
+        in2?x;
+        x := x*2;
         out!x;
+        c2 := -1
+    pool
+[]
+    var b;
+    var r;
+    loop
+        out?r;
+        b := r%2;
+        if b=0 -> skip [] b>0 -> skip fi
+    pool
+
+rap
+"
+
+let badBakerySimple = "
+par
+    loop
+        c1 := c2*(-1);
+        do c2 > 0 -> c1 := c2*(-1) od;
+        skip;
+        c1 := -1
+    pool
+[]
+    loop
+        c2 := c1*(-1);
+        do c1 > 0 -> c2 := c1*(-1) od;
+        skip;
         c2 := -1
     pool
 rap
 "
 
-let bakeryAlgorithm = "
+let badBakeryMod = "
 par
-    do true ->
-        x := y + 1;
-        if
-            y = 0 | x < y -> skip
-        []
-            (~(y = 0)) & (~(x < y)) -> skip
-        fi;
-        x := 0
-    od
+    loop
+        c1 := c2*(-1);
+        if c1 > 0 & c2 < 0 -> crit; c1 := -1
+        [] c1 <= 0 & c2 >= 0 -> skip fi
+    pool
 []
-    do true ->
-        y := x + 1;
-        if
-            x = 0 | y < x -> skip
-        []
-            (~(x = 0)) & (~(y < x)) -> skip
-        fi;
-        y := 0
-    od
+    loop
+        c2 := c1*(-1);
+        if c1 < 0 & c2 > 0 -> crit; c2 := -1
+        [] c1 >= 0 & c2 <= 0 -> skip fi
+    pool
 rap
 "
 
-let bakery2 = "
+let goodBakery = "
 par
-    do true ->
-        x1 := x2 + 1;
-        if x2 = 0 | x1 < x2 -> skip fi;
-        x2 := 0
-    od
+    loop
+        c1 := c2+1;
+        do c2 = 0 | c1>c2 -> skip od;
+        crit;
+        c1 := 0
+    pool
 []
-    do true ->
-        x2 := x1 + 1;
-        if x1 = 0 | x2 < x1 -> skip fi;
-        x1 := 0
-    od
+    loop
+        c2 := c1+1;
+        do c1 = 0 | c2>c1 -> skip od;
+        crit;
+        c2 := 0
+    pool
 rap
+"
 
-
+let securityBakery = "
+par
+    var x;
+    loop
+        c1 := c2+1;
+        do c2 = 0 | c1>c2 -> skip od;
+        in1?x;
+        x := (x - 1) * 2;
+        out!x;
+        c1 := 0
+    pool
+[]
+    var x;
+    loop
+        c2 := c1+1;
+        do c1 = 0 | c2>c1 -> skip od;
+        in2?x;
+        x := x*2;
+        out!x;
+        c2 := 0
+    pool
+[]
+    var r;
+    loop
+        out?r;
+        if r%2=0 -> crit [] r%2>0 -> crit fi
+    pool
+rap
 "
 
 let writeNoRead = "
