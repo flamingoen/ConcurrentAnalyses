@@ -135,9 +135,6 @@ let ruleToString = function
     | R_Grt(n) -> ">"+(string n)
     | R_Lt(n) -> "<"+(string n)
     | R_Eq(n) -> "="+(string n)
-    | R_Grtx(x) -> ">"+x
-    | R_Ltx(x) -> "<"+x
-    | R_Eqx(x) -> "="+x
 
 
 let policyToString = function

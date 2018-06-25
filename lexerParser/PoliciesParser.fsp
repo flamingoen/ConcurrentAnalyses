@@ -29,8 +29,5 @@ rule:
     | VAR EQUAL MINUS { Policy($1,R_Mi) }
     | VAR IMPLY ODD   { Policy($1,R_Odd) }
     | VAR IMPLY EVEN  { Policy($1,R_Even) }
-    | VAR EQUAL VAR   { Policy($1,R_Eqx($3)) }
-    | VAR GREATER VAR { Policy($1,R_Ltx($3)) }
-    | VAR LESS VAR    { Policy($1,R_Grtx($3)) }
 
 %%
