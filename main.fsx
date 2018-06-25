@@ -230,10 +230,10 @@ if createAnalysis then
         | LV  -> liveVariables g e
         | DOS when useProduct -> detectionOfSignsAnalysis gp p i ep
         | DOS -> detectionOfSignsAnalysis g p i e
-        | DOI when useProduct -> intervalAnalysis gp p ep
-        | DOI -> intervalAnalysis g p e
-        | PAR when useProduct -> parityAnalysis gp p ep
-        | PAR -> parityAnalysis g p e
+        | DOI when useProduct -> intervalAnalysis gp p i ep
+        | DOI -> intervalAnalysis g p i e
+        | PAR when useProduct -> parityAnalysis gp p i ep
+        | PAR -> parityAnalysis g p i e
         | PS  when useProduct -> parSignAnalysis gp p ep
         | PS  -> parSignAnalysis g p e
         | DS when useProduct -> parIntAnalysis gp p ep

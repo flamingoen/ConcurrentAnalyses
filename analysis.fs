@@ -68,7 +68,7 @@ let detectionOfSignsAnalysis G p i ex =
     let Cs = MFP (Lc (Ls G) G) G (E_initial ex) (exVal_C (exVal_s G p)) (Fc f_s Bs)
     let Cs' = Map.fold (fun r id (s,c) -> Map.add id c r) Map.empty Cs
     printfn"\nDetection of signs analysis"
-    let (res,sat) = MFPp (Ls G) G (E_initial ex) (exVal_s G i) f_s (con_sg Cs') (con_sa Cs') Map.empty (policySats ruleSatisfied_s p)
+    let (res,sat) = MFPp (Ls G) G (E_initial ex) (exVal_s G (p@i)) f_s (con_sg Cs') (con_sa Cs') Map.empty (policySats ruleSatisfied_s p)
     let colRes = Map.fold (fun r q s ->
         Map.add q ( condenseState S_Undefined signToString s (Set.toList (varsIn s))) r ) Map.empty res
     printfn""
@@ -90,12 +90,12 @@ let rec mergeIntervals state = function
     | var::xs   ->
         let varSet,extract = Set.partition (fun (x,signs) -> x=var ) state
         Set.add (var,(Set.fold (fun rst (v,i) -> rst+i ) Empty varSet)) (mergeIntervals extract xs)
-let intervalAnalysis G p ex =
+let intervalAnalysis G p i ex =
     printfn"\nAnalysing constraints"
     let Cs = MFP (Lc (L_I G) G) G (E_initial ex) (exVal_C (exVal_I G p)) (Fc (f_I MAX) B_I)
     let Cs' = Map.fold (fun r id (s,c) -> Map.add id c r) Map.empty Cs
     printfn"\nInterval analysis"
-    let (res,sat) = MFPp (L_I G) G (E_initial ex) (exVal_I G p) (f_I MAX) (con_ig Cs') (con_ia Cs') Map.empty (policySats ruleSatisfied_I p)
+    let (res,sat) = MFPp (L_I G) G (E_initial ex) (exVal_I G (i@p)) (f_I MAX) (con_ig Cs') (con_ia Cs') Map.empty (policySats ruleSatisfied_I p)
     let conRes = Map.fold (fun rst q s -> Map.add q ( mergeIntervals s (Set.toList (varsIn s))) rst ) Map.empty res
     printfn "\n"
     Map.iter (fun q state ->
@@ -111,12 +111,12 @@ let doiTest G p ex =
     MFPp (L_I G) G (E_initial ex) (exVal_I G p) (f_I MAX) (con_ig Cs') (con_ia Cs') Map.empty (policySats ruleSatisfied_I p)
 
 
-let parityAnalysis G p ex =
+let parityAnalysis G p i ex =
     printfn"\nAnalysing constraints"
     let Cs = MFP (Lc (Lp G) G) G (E_initial ex) (exVal_C (exVal_p G p)) (Fc f_p Bp)
     let Cs' = Map.fold (fun r id (s,c) -> Map.add id c r) Map.empty Cs
     printfn"\n Parity analysis"
-    let (res,sat) = MFPp (Lp G) G (E_initial ex) (exVal_p G p) f_p con_pg (con_pa Cs') Map.empty (policySats ruleSatisfied_P p)
+    let (res,sat) = MFPp (Lp G) G (E_initial ex) (exVal_p G (i@p)) f_p con_pg (con_pa Cs') Map.empty (policySats ruleSatisfied_P p)
     printfn "\n"
     let colRes = Map.fold (fun rst q s ->
         Map.add q ( condenseState P_Undefined parityToString s (Set.toList (varsIn s))) rst ) Map.empty res
