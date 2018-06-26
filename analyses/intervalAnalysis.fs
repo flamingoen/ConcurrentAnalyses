@@ -120,7 +120,7 @@ let equal = function
     | (_,_)                             -> Ø
 let greaterEq = function
     | (I(mx,mn),I(mx',mn')) when mn>=mx' -> Set.ofList [True]
-    | (I(mx,mn),I(mx',mn')) when mx>mn'  -> Set.ofList [False]
+    | (I(mx,mn),I(mx',mn')) when mx<mn'  -> Set.ofList [False]
     | (I(mx,mn),I(mx',mn'))              -> Set.ofList [True; False]
     | (_,_)                              -> Ø
 let lessEq = function
