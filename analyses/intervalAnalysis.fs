@@ -171,7 +171,7 @@ let rec B_I state = function
 
 let ConstraintSatisfied cr Ss =
     if Set.isEmpty cr then true
-    else Set.fold (fun r' inner -> r' || Set.fold (fun r cnstr -> (Set.contains True (B_I Ss cnstr)) && r) true inner ) false cr
+    else Set.fold (fun r' inner -> r' && Set.fold (fun r cnstr -> (Set.contains True (B_I Ss cnstr)) && r) true inner ) true cr
 
 let con_ig cr id Ss c =
     let t = Map.fold (fun r id' s -> if id'=id then r else r+s ) Ø c
